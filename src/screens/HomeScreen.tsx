@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -7,15 +9,37 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { initializeDatabase, type DbInitResult } from '../db/database';
+import type { RootTabParamList } from '../navigation/types';
 import { AidAmiTheme, px } from '../theme/AidAmiTheme';
 
 const MODULES = [
-  { key: 'household', label: 'Foyer', hint: 'Aidants & invitations' },
-  { key: 'tasks', label: 'Tâches', hint: 'Agenda & routines' },
-  { key: 'behavior', label: 'Comportements', hint: 'Surcharge & crises' },
-  { key: 'memory', label: 'Mémoire', hint: 'Trombinoscope' },
+  {
+    key: 'household',
+    route: 'Foyer' as const,
+    label: 'Foyer',
+    hint: 'Aidants & invitations',
+  },
+  {
+    key: 'tasks',
+    route: 'Taches' as const,
+    label: 'Tâches',
+    hint: 'Agenda & routines',
+  },
+  {
+    key: 'behavior',
+    route: 'Comportements' as const,
+    label: 'Comportements',
+    hint: 'Surcharge & crises',
+  },
+  {
+    key: 'memory',
+    route: 'Memoire' as const,
+    label: 'Mémoire',
+    hint: 'Trombinoscope',
+  },
 ] as const;
 
 const EMOTIONAL = [
@@ -26,6 +50,9 @@ const EMOTIONAL = [
 ] as const;
 
 export function HomeScreen() {
+  const navigation =
+    useNavigation<BottomTabNavigationProp<RootTabParamList, 'Accueil'>>();
+  const insets = useSafeAreaInsets();
   const [dbStatus, setDbStatus] = useState<DbInitResult | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +75,10 @@ export function HomeScreen() {
   return (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: Math.max(insets.top, 24) + 16 },
+      ]}
       accessibilityLabel="Écran d'accueil Aid'Ami"
     >
       <Text style={styles.brand}>Aid'Ami</Text>
@@ -74,14 +104,16 @@ export function HomeScreen() {
         )}
       </View>
 
-      <Text style={styles.sectionLabel}>Modules (placeholders)</Text>
+      <Text style={styles.sectionLabel}>Modules</Text>
       <View style={styles.moduleList}>
         {MODULES.map((mod) => (
           <Pressable
             key={mod.key}
             style={({ pressed }) => [styles.moduleButton, pressed && styles.modulePressed]}
             accessibilityRole="button"
-            accessibilityLabel={mod.label}
+            accessibilityLabel={`Ouvrir ${mod.label}`}
+            accessibilityHint={mod.hint}
+            onPress={() => navigation.navigate(mod.route)}
           >
             <Text style={styles.moduleLabel}>{mod.label}</Text>
             <Text style={styles.moduleHint}>{mod.hint}</Text>
@@ -109,7 +141,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 24,
-    paddingTop: 64,
     paddingBottom: 48,
   },
   brand: {
