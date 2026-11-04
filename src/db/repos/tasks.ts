@@ -19,6 +19,7 @@ export type UpdateTaskInput = {
   scheduled_at?: string | null;
   sequence_order?: number | null;
   icon_name?: string | null;
+  audio_memo_url?: string | null;
   is_completed?: SqliteBoolean;
   completed_at?: string | null;
   completed_by_user_id?: string | null;
@@ -113,6 +114,10 @@ export async function updateTask(
         : existing.sequence_order,
     icon_name:
       input.icon_name !== undefined ? input.icon_name : existing.icon_name,
+    audio_memo_url:
+      input.audio_memo_url !== undefined
+        ? input.audio_memo_url
+        : existing.audio_memo_url,
     is_completed:
       input.is_completed !== undefined
         ? input.is_completed
@@ -133,14 +138,15 @@ export async function updateTask(
     await db.runAsync(
       `UPDATE tasks SET
         title = ?, category = ?, scheduled_at = ?, sequence_order = ?,
-        icon_name = ?, is_completed = ?, completed_at = ?, completed_by_user_id = ?,
-        updated_at = ?
+        icon_name = ?, audio_memo_url = ?, is_completed = ?, completed_at = ?,
+        completed_by_user_id = ?, updated_at = ?
        WHERE id = ?`,
       updated.title,
       updated.category,
       updated.scheduled_at,
       updated.sequence_order,
       updated.icon_name,
+      updated.audio_memo_url,
       updated.is_completed,
       updated.completed_at,
       updated.completed_by_user_id,
