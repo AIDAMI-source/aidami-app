@@ -5,10 +5,17 @@ import { EXPECTED_TABLES, SCHEMA_SQL } from './schema';
 const DB_NAME = 'aidami.db';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let schemaReady = false;
 
 export type DbInitResult = {
   ok: boolean;
   tables: string[];
+  seed?: {
+    seeded: boolean;
+    householdId: string;
+    userId: string;
+    careRecipientId: string;
+  };
   error?: string;
 };
 
@@ -20,12 +27,14 @@ async function openDb(): Promise<SQLite.SQLiteDatabase> {
 }
 
 /**
- * Opens the local SQLite database and applies the Aid'Ami schema.
+ * Opens the local SQLite database, applies the Aid'Ami schema,
+ * and seeds a demo foyer when empty.
  */
 export async function initializeDatabase(): Promise<DbInitResult> {
   try {
     const db = await openDb();
     await db.execAsync(SCHEMA_SQL);
+    schemaReady = true;
 
     const rows = await db.getAllAsync<{ name: string }>(
       `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`,
@@ -41,7 +50,10 @@ export async function initializeDatabase(): Promise<DbInitResult> {
       };
     }
 
-    return { ok: true, tables };
+    // Dynamic import avoids a circular dependency with seed.ts → getDatabase.
+    const { seedIfEmpty } = await import('./seed');
+    const seed = await seedIfEmpty();
+    return { ok: true, tables, seed };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return { ok: false, tables: [], error: message };
@@ -50,5 +62,9 @@ export async function initializeDatabase(): Promise<DbInitResult> {
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   const db = await openDb();
+  if (!schemaReady) {
+    await db.execAsync(SCHEMA_SQL);
+    schemaReady = true;
+  }
   return db;
 }

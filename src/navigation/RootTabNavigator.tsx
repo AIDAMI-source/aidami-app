@@ -1,11 +1,11 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, StyleSheet } from 'react-native';
 
-import { BehaviorLogsPlaceholder } from '../screens/behavior-logs/BehaviorLogsPlaceholder';
+import { BehaviorLogsScreen } from '../screens/behavior-logs/BehaviorLogsScreen';
 import { HomeScreen } from '../screens/HomeScreen';
-import { HouseholdPlaceholder } from '../screens/household/HouseholdPlaceholder';
-import { MemoryPlaceholder } from '../screens/memory/MemoryPlaceholder';
-import { TasksPlaceholder } from '../screens/tasks/TasksPlaceholder';
+import { HouseholdScreen } from '../screens/household/HouseholdScreen';
+import { MemoryScreen } from '../screens/memory/MemoryScreen';
+import { TasksScreen } from '../screens/tasks/TasksScreen';
 import { AidAmiTheme, px } from '../theme/AidAmiTheme';
 
 import type { RootTabParamList } from './types';
@@ -64,22 +64,22 @@ export function RootTabNavigator() {
       />
       <Tab.Screen
         name="Foyer"
-        component={HouseholdPlaceholder}
+        component={HouseholdScreen}
         options={{ title: 'Foyer' }}
       />
       <Tab.Screen
         name="Taches"
-        component={TasksPlaceholder}
+        component={TasksScreen}
         options={{ title: 'Tâches' }}
       />
       <Tab.Screen
         name="Comportements"
-        component={BehaviorLogsPlaceholder}
+        component={BehaviorLogsScreen}
         options={{ title: 'Comportements' }}
       />
       <Tab.Screen
         name="Memoire"
-        component={MemoryPlaceholder}
+        component={MemoryScreen}
         options={{ title: 'Mémoire' }}
       />
     </Tab.Navigator>
