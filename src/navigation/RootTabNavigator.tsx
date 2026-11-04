@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, StyleSheet } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { BehaviorLogsScreen } from '../screens/behavior-logs/BehaviorLogsScreen';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -16,9 +16,19 @@ const TAB_LABELS: Record<keyof RootTabParamList, string> = {
   Accueil: 'Accueil',
   Foyer: 'Foyer',
   Taches: 'Tâches',
-  Comportements: 'Comportements',
+  Comportements: 'Comport.',
   Memoire: 'Mémoire',
 };
+
+function TabIcon({ focused }: { focused: boolean }) {
+  return (
+    <View
+      style={[styles.tabIcon, focused ? styles.tabIconFocused : styles.tabIconIdle]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    />
+  );
+}
 
 function TabLabel({
   routeName,
@@ -44,16 +54,18 @@ export function RootTabNavigator() {
       initialRouteName="Accueil"
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: AidAmiTheme.colors.primary,
-        tabBarInactiveTintColor: AidAmiTheme.colors.secondary,
+        tabBarActiveTintColor: AidAmiTheme.colors.accent,
+        tabBarInactiveTintColor: AidAmiTheme.colors.tabInactive,
         tabBarStyle: styles.tabBar,
         tabBarItemStyle: styles.tabBarItem,
         tabBarLabel: ({ focused }) => (
           <TabLabel routeName={route.name} focused={focused} />
         ),
-        tabBarIcon: () => null,
-        tabBarIconStyle: styles.tabBarIconHidden,
-        tabBarAccessibilityLabel: TAB_LABELS[route.name],
+        tabBarIcon: ({ focused }) => <TabIcon focused={focused} />,
+        tabBarAccessibilityLabel:
+          route.name === 'Comportements'
+            ? 'Comportements'
+            : TAB_LABELS[route.name],
         sceneStyle: styles.scene,
       })}
     >
@@ -89,31 +101,38 @@ export function RootTabNavigator() {
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: AidAmiTheme.colors.surface,
-    borderTopColor: AidAmiTheme.colors.background,
-    borderTopWidth: 1,
-    minHeight: px(AidAmiTheme.touchTarget.minHeight) + 16,
-    paddingTop: 6,
-    paddingBottom: 6,
+    borderTopColor: AidAmiTheme.colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    minHeight: px(AidAmiTheme.touchTarget.minHeight) + 20,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   tabBarItem: {
     minHeight: px(AidAmiTheme.touchTarget.minHeight),
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
-  tabBarIconHidden: {
-    display: 'none',
-    height: 0,
-    width: 0,
+  tabIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    marginBottom: 2,
+  },
+  tabIconFocused: {
+    backgroundColor: AidAmiTheme.colors.accent,
+  },
+  tabIconIdle: {
+    backgroundColor: AidAmiTheme.colors.tabInactive,
   },
   tabLabel: {
     fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '500',
-    color: AidAmiTheme.colors.secondary,
+    color: AidAmiTheme.colors.tabInactive,
     textAlign: 'center',
   },
   tabLabelFocused: {
-    color: AidAmiTheme.colors.primary,
+    color: AidAmiTheme.colors.accent,
     fontWeight: '700',
   },
   scene: {

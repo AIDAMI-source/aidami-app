@@ -47,13 +47,6 @@ const MODULES = [
   },
 ] as const;
 
-const EMOTIONAL = [
-  { key: 'green', color: AidAmiTheme.colors.emotionalGreen, label: 'Vert' },
-  { key: 'yellow', color: AidAmiTheme.colors.emotionalYellow, label: 'Jaune' },
-  { key: 'orange', color: AidAmiTheme.colors.emotionalOrange, label: 'Orange' },
-  { key: 'red', color: AidAmiTheme.colors.emotionalRed, label: 'Rouge' },
-] as const;
-
 export function HomeScreen() {
   const navigation =
     useNavigation<BottomTabNavigationProp<RootTabParamList, 'Accueil'>>();
@@ -167,7 +160,7 @@ export function HomeScreen() {
               style={({ pressed }) => [
                 styles.syncButton,
                 (syncing || loading) && styles.syncButtonDisabled,
-                pressed && styles.modulePressed,
+                pressed && styles.pressed,
               ]}
               onPress={() => void onSynchroniser()}
               disabled={syncing || loading}
@@ -188,7 +181,10 @@ export function HomeScreen() {
         {MODULES.map((mod) => (
           <Pressable
             key={mod.key}
-            style={({ pressed }) => [styles.moduleButton, pressed && styles.modulePressed]}
+            style={({ pressed }) => [
+              styles.moduleButton,
+              pressed && styles.pressed,
+            ]}
             accessibilityRole="button"
             accessibilityLabel={`Ouvrir ${mod.label}`}
             accessibilityHint={mod.hint}
@@ -199,16 +195,6 @@ export function HomeScreen() {
           </Pressable>
         ))}
       </View>
-
-      <Text style={styles.sectionLabel}>Code émotionnel</Text>
-      <View style={styles.emotionRow}>
-        {EMOTIONAL.map((tone) => (
-          <View key={tone.key} style={styles.emotionItem}>
-            <View style={[styles.emotionSwatch, { backgroundColor: tone.color }]} />
-            <Text style={styles.emotionLabel}>{tone.label}</Text>
-          </View>
-        ))}
-      </View>
     </ScrollView>
   );
 }
@@ -216,7 +202,7 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: AidAmiTheme.colors.background,
+    backgroundColor: AidAmiTheme.colors.surface,
   },
   content: {
     paddingHorizontal: 24,
@@ -225,7 +211,8 @@ const styles = StyleSheet.create({
   brand: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeTitle),
-    lineHeight: px(AidAmiTheme.typography.sizeTitle) * AidAmiTheme.typography.lineHeight,
+    lineHeight:
+      px(AidAmiTheme.typography.sizeTitle) * AidAmiTheme.typography.lineHeight,
     fontWeight: '700',
     color: AidAmiTheme.colors.primary,
     marginBottom: 8,
@@ -233,12 +220,13 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
-    lineHeight: px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
-    color: AidAmiTheme.colors.secondary,
+    lineHeight:
+      px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
+    color: AidAmiTheme.colors.primary,
     marginBottom: 28,
   },
   statusCard: {
-    backgroundColor: AidAmiTheme.colors.surface,
+    backgroundColor: AidAmiTheme.colors.surfaceMuted,
     borderRadius: px(AidAmiTheme.borderRadius.card),
     padding: 20,
     marginBottom: 28,
@@ -246,8 +234,10 @@ const styles = StyleSheet.create({
   statusTitle: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeSubTitle),
-    lineHeight: px(AidAmiTheme.typography.sizeSubTitle) * AidAmiTheme.typography.lineHeight,
-    fontWeight: '600',
+    lineHeight:
+      px(AidAmiTheme.typography.sizeSubTitle) *
+      AidAmiTheme.typography.lineHeight,
+    fontWeight: '700',
     color: AidAmiTheme.colors.primary,
     marginBottom: 8,
   },
@@ -259,26 +249,31 @@ const styles = StyleSheet.create({
   statusBody: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
-    lineHeight: px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
+    lineHeight:
+      px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
     color: AidAmiTheme.colors.textPrimary,
   },
   statusOk: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
-    lineHeight: px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
-    color: AidAmiTheme.colors.secondary,
+    lineHeight:
+      px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
+    color: AidAmiTheme.colors.textMuted,
   },
   statusError: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
-    lineHeight: px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
+    lineHeight:
+      px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
     color: AidAmiTheme.colors.emotionalRed,
   },
   syncMeta: {
     fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeBody) - 2,
-    lineHeight: (px(AidAmiTheme.typography.sizeBody) - 2) * AidAmiTheme.typography.lineHeight,
-    color: AidAmiTheme.colors.secondary,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    lineHeight:
+      px(AidAmiTheme.typography.sizeCaption) *
+      AidAmiTheme.typography.lineHeight,
+    color: AidAmiTheme.colors.textMuted,
     marginTop: 10,
   },
   syncButton: {
@@ -297,62 +292,44 @@ const styles = StyleSheet.create({
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
     fontWeight: '600',
-    color: AidAmiTheme.colors.surface,
+    color: AidAmiTheme.colors.onAccent,
   },
   sectionLabel: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeSubTitle),
-    lineHeight: px(AidAmiTheme.typography.sizeSubTitle) * AidAmiTheme.typography.lineHeight,
-    fontWeight: '600',
+    lineHeight:
+      px(AidAmiTheme.typography.sizeSubTitle) *
+      AidAmiTheme.typography.lineHeight,
+    fontWeight: '700',
     color: AidAmiTheme.colors.primary,
     marginBottom: 12,
   },
   moduleList: {
     gap: 12,
-    marginBottom: 28,
   },
   moduleButton: {
     backgroundColor: AidAmiTheme.colors.accent,
     borderRadius: px(AidAmiTheme.borderRadius.button),
-    minHeight: px(AidAmiTheme.touchTarget.minHeight),
+    minHeight: 72,
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 16,
     justifyContent: 'center',
   },
-  modulePressed: {
+  pressed: {
     opacity: 0.85,
   },
   moduleLabel: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
-    lineHeight: px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
-    fontWeight: '600',
-    color: AidAmiTheme.colors.primary,
+    lineHeight:
+      px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
+    fontWeight: '700',
+    color: AidAmiTheme.colors.onAccent,
   },
   moduleHint: {
     fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeBody) - 2,
-    color: AidAmiTheme.colors.primary,
-    opacity: 0.8,
-  },
-  emotionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  emotionItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  emotionSwatch: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginBottom: 6,
-  },
-  emotionLabel: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: 14,
-    color: AidAmiTheme.colors.textPrimary,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    color: AidAmiTheme.colors.onAccent,
+    opacity: 0.92,
   },
 });

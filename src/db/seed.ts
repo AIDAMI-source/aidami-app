@@ -33,6 +33,26 @@ async function countHouseholds(): Promise<number> {
   return row?.count ?? 0;
 }
 
+function atLocalHour(base: Date, hour: number, minute = 0): string {
+  const d = new Date(
+    base.getFullYear(),
+    base.getMonth(),
+    base.getDate(),
+    hour,
+    minute,
+    0,
+    0,
+  );
+  return d.toISOString();
+}
+
+function daysFromToday(offset: number): Date {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() + offset);
+  return d;
+}
+
 /**
  * Inserts a small demo foyer when the DB has no households.
  * Mutations are also enqueued in sync_queue (CREATE).
@@ -67,10 +87,13 @@ export async function seedIfEmpty(): Promise<SeedResult> {
 
   const db = await getDatabase();
   const now = nowIso();
+  const today = daysFromToday(0);
+  const tomorrow = daysFromToday(1);
+  const yesterday = daysFromToday(-1);
 
   const household: Household = {
     id: DEMO_IDS.household,
-    name: "Foyer Martin",
+    name: 'Foyer Martin',
     invite_code: 'AIDAMI',
     created_at: now,
     updated_at: now,
@@ -80,8 +103,8 @@ export async function seedIfEmpty(): Promise<SeedResult> {
   const admin: User = {
     id: DEMO_IDS.admin,
     household_id: household.id,
-    full_name: 'Camille Martin',
-    email: 'camille@aidami.demo',
+    full_name: 'Marie Dubois',
+    email: 'marie.dubois@aidami.demo',
     role: 'admin',
     created_at: now,
     updated_at: now,
@@ -90,8 +113,8 @@ export async function seedIfEmpty(): Promise<SeedResult> {
   const caregiver: User = {
     id: DEMO_IDS.caregiver,
     household_id: household.id,
-    full_name: 'Alex Bernard',
-    email: 'alex@aidami.demo',
+    full_name: 'Jean Lefebvre',
+    email: 'jean.lefebvre@aidami.demo',
     role: 'caregiver',
     created_at: now,
     updated_at: now,
@@ -108,29 +131,34 @@ export async function seedIfEmpty(): Promise<SeedResult> {
     updated_at: now,
   };
 
+  const breakfastAt = atLocalHour(today, 8, 0);
+  const walkAt = atLocalHour(today, 14, 30);
+  const dinnerAt = atLocalHour(today, 18, 0);
+  const visitAt = atLocalHour(tomorrow, 10, 0);
+
   const tasks: Task[] = [
     {
       id: newId(),
       care_recipient_id: recipient.id,
-      title: 'Médicaments du matin',
-      category: 'MEDICATION',
-      scheduled_at: now,
+      title: 'Petit-déjeuner',
+      category: 'MEAL',
+      scheduled_at: breakfastAt,
       routine_parent_id: null,
       sequence_order: 1,
       icon_name: null,
       audio_memo_url: null,
-      is_completed: 0,
-      completed_at: null,
-      completed_by_user_id: null,
+      is_completed: 1,
+      completed_at: breakfastAt,
+      completed_by_user_id: admin.id,
       created_at: now,
       updated_at: now,
     },
     {
       id: newId(),
       care_recipient_id: recipient.id,
-      title: 'Promenade après-midi',
+      title: 'Promenade au parc',
       category: 'ROUTINE',
-      scheduled_at: now,
+      scheduled_at: walkAt,
       routine_parent_id: null,
       sequence_order: 2,
       icon_name: null,
@@ -141,34 +169,154 @@ export async function seedIfEmpty(): Promise<SeedResult> {
       created_at: now,
       updated_at: now,
     },
+    {
+      id: newId(),
+      care_recipient_id: recipient.id,
+      title: 'Préparation dîner',
+      category: 'MEAL',
+      scheduled_at: dinnerAt,
+      routine_parent_id: null,
+      sequence_order: 3,
+      icon_name: null,
+      audio_memo_url: null,
+      is_completed: 0,
+      completed_at: null,
+      completed_by_user_id: null,
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: newId(),
+      care_recipient_id: recipient.id,
+      title: 'Visite famille',
+      category: 'APPOINTMENT',
+      scheduled_at: visitAt,
+      routine_parent_id: null,
+      sequence_order: 4,
+      icon_name: null,
+      audio_memo_url: null,
+      is_completed: 0,
+      completed_at: null,
+      completed_by_user_id: null,
+      created_at: now,
+      updated_at: now,
+    },
   ];
 
-  const behavior: BehaviorLog = {
-    id: newId(),
-    care_recipient_id: recipient.id,
-    user_id: admin.id,
-    intensity_level: 'YELLOW',
-    trigger_event: 'Bruit fort',
-    description: 'Agitation légère après une sonnerie',
-    location: 'Salon',
-    duration_minutes: 10,
-    kit_tools_used: '["casque_anti_bruit"]',
-    logged_at: now,
-    created_at: now,
-    updated_at: now,
-  };
+  const behaviors: BehaviorLog[] = [
+    {
+      id: newId(),
+      care_recipient_id: recipient.id,
+      user_id: admin.id,
+      intensity_level: 'GREEN',
+      trigger_event: null,
+      description: 'Activité de dessin appréciée, bonne concentration',
+      location: 'Salon',
+      duration_minutes: 30,
+      kit_tools_used: null,
+      logged_at: atLocalHour(today, 14, 25),
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: newId(),
+      care_recipient_id: recipient.id,
+      user_id: admin.id,
+      intensity_level: 'YELLOW',
+      trigger_event: 'Bruit dans la rue',
+      description: 'Bruit dans la rue, distraction temporaire',
+      location: 'Salon',
+      duration_minutes: 10,
+      kit_tools_used: '["casque_anti_bruit"]',
+      logged_at: atLocalHour(today, 12, 10),
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: newId(),
+      care_recipient_id: recipient.id,
+      user_id: caregiver.id,
+      intensity_level: 'ORANGE',
+      trigger_event: 'Magasin bondé',
+      description:
+        'Magasin bondé, besoin de sortir rapidement. Retour au calme après 15 min.',
+      location: 'Magasin',
+      duration_minutes: 15,
+      kit_tools_used: null,
+      logged_at: atLocalHour(yesterday, 18, 45),
+      created_at: now,
+      updated_at: now,
+    },
+  ];
 
-  const memory: MemoryItem = {
-    id: newId(),
-    care_recipient_id: recipient.id,
-    title: 'Paul',
-    relation_type: 'Frère',
-    photo_url: null,
-    key_anecdote: 'Vacances à la mer en 1982',
-    audio_record_url: null,
-    created_at: now,
-    updated_at: now,
-  };
+  const memories: MemoryItem[] = [
+    {
+      id: newId(),
+      care_recipient_id: recipient.id,
+      title: 'Marie',
+      relation_type: 'Fille',
+      photo_url: null,
+      key_anecdote: 'Visite chaque mardi',
+      audio_record_url: null,
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: newId(),
+      care_recipient_id: recipient.id,
+      title: 'Jean',
+      relation_type: 'Gendre',
+      photo_url: null,
+      key_anecdote: 'Partage le jardin',
+      audio_record_url: null,
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: newId(),
+      care_recipient_id: recipient.id,
+      title: 'Lucas',
+      relation_type: 'Petit-fils',
+      photo_url: null,
+      key_anecdote: 'Jeux de société le dimanche',
+      audio_record_url: null,
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: newId(),
+      care_recipient_id: recipient.id,
+      title: 'Emma',
+      relation_type: 'Petite-fille',
+      photo_url: null,
+      key_anecdote: 'Chante les chansons préférées',
+      audio_record_url: null,
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: newId(),
+      care_recipient_id: recipient.id,
+      title: 'Dr. Martin',
+      relation_type: 'Médecin',
+      photo_url: null,
+      key_anecdote: 'Suivi mensuel',
+      audio_record_url: null,
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: newId(),
+      care_recipient_id: recipient.id,
+      title: 'Sophie',
+      relation_type: 'Voisine',
+      photo_url: null,
+      key_anecdote: 'Apporte du pain le matin',
+      audio_record_url: null,
+      created_at: now,
+      updated_at: now,
+    },
+  ];
 
   await db.withTransactionAsync(async () => {
     await db.runAsync(
@@ -238,43 +386,47 @@ export async function seedIfEmpty(): Promise<SeedResult> {
       await enqueueSync(db, 'tasks', task.id, 'CREATE', task);
     }
 
-    await db.runAsync(
-      `INSERT INTO behavior_logs (
-        id, care_recipient_id, user_id, intensity_level, trigger_event,
-        description, location, duration_minutes, kit_tools_used,
-        logged_at, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      behavior.id,
-      behavior.care_recipient_id,
-      behavior.user_id,
-      behavior.intensity_level,
-      behavior.trigger_event,
-      behavior.description,
-      behavior.location,
-      behavior.duration_minutes,
-      behavior.kit_tools_used,
-      behavior.logged_at,
-      behavior.created_at,
-      behavior.updated_at,
-    );
-    await enqueueSync(db, 'behavior_logs', behavior.id, 'CREATE', behavior);
+    for (const behavior of behaviors) {
+      await db.runAsync(
+        `INSERT INTO behavior_logs (
+          id, care_recipient_id, user_id, intensity_level, trigger_event,
+          description, location, duration_minutes, kit_tools_used,
+          logged_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        behavior.id,
+        behavior.care_recipient_id,
+        behavior.user_id,
+        behavior.intensity_level,
+        behavior.trigger_event,
+        behavior.description,
+        behavior.location,
+        behavior.duration_minutes,
+        behavior.kit_tools_used,
+        behavior.logged_at,
+        behavior.created_at,
+        behavior.updated_at,
+      );
+      await enqueueSync(db, 'behavior_logs', behavior.id, 'CREATE', behavior);
+    }
 
-    await db.runAsync(
-      `INSERT INTO memory_items (
-        id, care_recipient_id, title, relation_type, photo_url,
-        key_anecdote, audio_record_url, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      memory.id,
-      memory.care_recipient_id,
-      memory.title,
-      memory.relation_type,
-      memory.photo_url,
-      memory.key_anecdote,
-      memory.audio_record_url,
-      memory.created_at,
-      memory.updated_at,
-    );
-    await enqueueSync(db, 'memory_items', memory.id, 'CREATE', memory);
+    for (const memory of memories) {
+      await db.runAsync(
+        `INSERT INTO memory_items (
+          id, care_recipient_id, title, relation_type, photo_url,
+          key_anecdote, audio_record_url, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        memory.id,
+        memory.care_recipient_id,
+        memory.title,
+        memory.relation_type,
+        memory.photo_url,
+        memory.key_anecdote,
+        memory.audio_record_url,
+        memory.created_at,
+        memory.updated_at,
+      );
+      await enqueueSync(db, 'memory_items', memory.id, 'CREATE', memory);
+    }
   });
 
   return {

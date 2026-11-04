@@ -18,10 +18,11 @@ import {
 } from '../../db';
 import type { Household, User } from '../../types/models';
 import { AidAmiTheme, px } from '../../theme/AidAmiTheme';
+import { Avatar, ScreenHeader, SectionHeader } from '../../ui';
 
 const ROLE_LABEL: Record<string, string> = {
-  admin: 'Admin',
-  caregiver: 'Aidant',
+  admin: 'Aidant principal',
+  caregiver: 'Aidant secondaire',
   aesh: 'AESH',
 };
 
@@ -31,6 +32,7 @@ export function HouseholdScreen() {
   const [error, setError] = useState<string | null>(null);
   const [household, setHousehold] = useState<Household | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [saving, setSaving] = useState(false);
@@ -68,6 +70,7 @@ export function HouseholdScreen() {
       });
       setName('');
       setEmail('');
+      setInviteOpen(false);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -89,8 +92,10 @@ export function HouseholdScreen() {
       keyboardShouldPersistTaps="handled"
       accessibilityLabel="Module Foyer"
     >
-      <Text style={styles.title}>Foyer</Text>
-      <Text style={styles.subtitle}>Aidants & code d'invitation</Text>
+      <ScreenHeader
+        title="Foyer"
+        subtitle="Gérez les aidants et invitations"
+      />
 
       {loading ? (
         <ActivityIndicator color={AidAmiTheme.colors.accent} />
@@ -98,66 +103,102 @@ export function HouseholdScreen() {
         <Text style={styles.error}>{error}</Text>
       ) : household ? (
         <>
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Nom du foyer</Text>
-            <Text style={styles.cardValue}>{household.name}</Text>
-            <Text style={[styles.cardLabel, styles.cardLabelSpaced]}>
-              Code d'invitation
-            </Text>
-            <Text
-              style={styles.inviteCode}
-              accessibilityLabel={`Code d'invitation ${household.invite_code}`}
-            >
-              {household.invite_code}
+          <SectionHeader title="Aidants actifs" count={users.length} />
+          <View style={styles.listCard}>
+            {users.length === 0 ? (
+              <Text style={styles.emptyInline}>Aucun aidant pour le moment.</Text>
+            ) : (
+              users.map((user, index) => (
+                <View key={user.id}>
+                  {index > 0 ? <View style={styles.divider} /> : null}
+                  <View style={styles.personRow}>
+                    <Avatar name={user.full_name} id={user.id} size={48} />
+                    <View style={styles.personText}>
+                      <Text style={styles.personName}>{user.full_name}</Text>
+                      <Text style={styles.personMeta}>
+                        {ROLE_LABEL[user.role ?? ''] ?? user.role ?? 'Aidant'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+
+          <SectionHeader
+            title="Invitations en attente"
+            count={1}
+            badgeColor={AidAmiTheme.colors.pending}
+          />
+          <View style={styles.listCard}>
+            <Text style={styles.inviteText}>
+              Code foyer « {household.invite_code} » — partagez-le pour
+              inviter un aidant.
             </Text>
           </View>
 
-          <Text style={styles.section}>Aidants</Text>
-          {users.map((user) => (
-            <View key={user.id} style={styles.row}>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{user.full_name}</Text>
-                <Text style={styles.rowMeta}>
-                  {ROLE_LABEL[user.role ?? ''] ?? user.role ?? '—'} · {user.email}
+          {inviteOpen ? (
+            <View style={styles.formCard}>
+              <Text style={styles.formTitle}>Inviter un aidant</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Nom complet"
+                placeholderTextColor={AidAmiTheme.colors.textMuted}
+                value={name}
+                onChangeText={setName}
+                accessibilityLabel="Nom de l'aidant"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor={AidAmiTheme.colors.textMuted}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                accessibilityLabel="Email de l'aidant"
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.button,
+                  (!name.trim() || !email.trim() || saving) &&
+                    styles.buttonDisabled,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => void onAddCaregiver()}
+                disabled={!name.trim() || !email.trim() || saving}
+                accessibilityRole="button"
+                accessibilityLabel="Confirmer l'invitation"
+              >
+                <Text style={styles.buttonLabel}>
+                  {saving ? 'Ajout…' : 'Confirmer'}
                 </Text>
-              </View>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => setInviteOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Annuler l'invitation"
+              >
+                <Text style={styles.secondaryLabel}>Annuler</Text>
+              </Pressable>
             </View>
-          ))}
-
-          <Text style={styles.section}>Ajouter un aidant</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Nom complet"
-            placeholderTextColor={AidAmiTheme.colors.secondary}
-            value={name}
-            onChangeText={setName}
-            accessibilityLabel="Nom de l'aidant"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={AidAmiTheme.colors.secondary}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            accessibilityLabel="Email de l'aidant"
-          />
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              (!name.trim() || !email.trim() || saving) && styles.buttonDisabled,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => void onAddCaregiver()}
-            disabled={!name.trim() || !email.trim() || saving}
-            accessibilityRole="button"
-            accessibilityLabel="Ajouter l'aidant"
-          >
-            <Text style={styles.buttonLabel}>
-              {saving ? 'Ajout…' : 'Ajouter'}
-            </Text>
-          </Pressable>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => setInviteOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Inviter un aidant"
+            >
+              <Text style={styles.buttonLabel}>+ Inviter un aidant</Text>
+            </Pressable>
+          )}
         </>
       ) : null}
     </ScrollView>
@@ -172,78 +213,73 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
   },
-  title: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeTitle),
-    lineHeight: px(AidAmiTheme.typography.sizeTitle) * AidAmiTheme.typography.lineHeight,
-    fontWeight: '700',
-    color: AidAmiTheme.colors.primary,
-  },
-  subtitle: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeBody),
-    color: AidAmiTheme.colors.secondary,
-    marginBottom: 20,
-  },
-  card: {
+  listCard: {
     backgroundColor: AidAmiTheme.colors.surface,
     borderRadius: px(AidAmiTheme.borderRadius.card),
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
     marginBottom: 24,
+    ...AidAmiTheme.shadow.card,
   },
-  cardLabel: {
+  personRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    minHeight: px(AidAmiTheme.touchTarget.minHeight) + 12,
+    paddingVertical: 12,
+  },
+  personText: {
+    flex: 1,
+    gap: 2,
+  },
+  personName: {
     fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: 14,
-    color: AidAmiTheme.colors.secondary,
-    marginBottom: 4,
-  },
-  cardLabelSpaced: {
-    marginTop: 16,
-  },
-  cardValue: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeSubTitle),
-    fontWeight: '600',
-    color: AidAmiTheme.colors.textPrimary,
-  },
-  inviteCode: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: 28,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
     fontWeight: '700',
-    letterSpacing: 4,
     color: AidAmiTheme.colors.primary,
   },
-  section: {
+  personMeta: {
     fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeSubTitle),
-    fontWeight: '600',
-    color: AidAmiTheme.colors.primary,
-    marginBottom: 12,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    color: AidAmiTheme.colors.textMuted,
   },
-  row: {
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: AidAmiTheme.colors.border,
+  },
+  inviteText: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
+    lineHeight:
+      px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
+    color: AidAmiTheme.colors.textMuted,
+    textAlign: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 8,
+  },
+  emptyInline: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
+    color: AidAmiTheme.colors.textMuted,
+    paddingVertical: 18,
+    textAlign: 'center',
+  },
+  formCard: {
     backgroundColor: AidAmiTheme.colors.surface,
     borderRadius: px(AidAmiTheme.borderRadius.card),
     padding: 16,
-    marginBottom: 10,
-    minHeight: px(AidAmiTheme.touchTarget.minHeight),
-    justifyContent: 'center',
+    marginBottom: 12,
+    ...AidAmiTheme.shadow.card,
   },
-  rowText: {
-    gap: 2,
-  },
-  rowTitle: {
+  formTitle: {
     fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeBody),
-    fontWeight: '600',
-    color: AidAmiTheme.colors.textPrimary,
-  },
-  rowMeta: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: 14,
-    color: AidAmiTheme.colors.secondary,
+    fontSize: px(AidAmiTheme.typography.sizeSubTitle),
+    fontWeight: '700',
+    color: AidAmiTheme.colors.primary,
+    marginBottom: 12,
   },
   input: {
-    backgroundColor: AidAmiTheme.colors.surface,
+    backgroundColor: AidAmiTheme.colors.surfaceMuted,
     borderRadius: px(AidAmiTheme.borderRadius.button),
     minHeight: px(AidAmiTheme.touchTarget.minHeight),
     paddingHorizontal: 16,
@@ -259,7 +295,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 4,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -270,8 +305,20 @@ const styles = StyleSheet.create({
   buttonLabel: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
+    fontWeight: '700',
+    color: AidAmiTheme.colors.onAccent,
+  },
+  secondaryButton: {
+    minHeight: px(AidAmiTheme.touchTarget.minHeight),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  secondaryLabel: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
     fontWeight: '600',
-    color: AidAmiTheme.colors.primary,
+    color: AidAmiTheme.colors.textMuted,
   },
   error: {
     fontFamily: AidAmiTheme.typography.fontFamily,
