@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,17 +19,24 @@ import {
 } from '../../db';
 import type { CareRecipient, MemoryItem } from '../../types/models';
 import { AidAmiTheme, px } from '../../theme/AidAmiTheme';
+import { Avatar, ScreenHeader } from '../../ui';
 
 export function MemoryScreen() {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [recipient, setRecipient] = useState<CareRecipient | null>(null);
   const [items, setItems] = useState<MemoryItem[]>([]);
+  const [composerOpen, setComposerOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [relation, setRelation] = useState('');
   const [anecdote, setAnecdote] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const horizontalPadding = 24;
+  const gap = 12;
+  const cardWidth = Math.floor((width - horizontalPadding * 2 - gap) / 2);
 
   const load = useCallback(async () => {
     try {
@@ -64,6 +72,7 @@ export function MemoryScreen() {
       setTitle('');
       setRelation('');
       setAnecdote('');
+      setComposerOpen(false);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -85,12 +94,14 @@ export function MemoryScreen() {
       keyboardShouldPersistTaps="handled"
       accessibilityLabel="Module Mémoire"
     >
-      <Text style={styles.title}>Mémoire</Text>
-      <Text style={styles.subtitle}>
-        {recipient
-          ? `Trombinoscope pour ${recipient.first_name}`
-          : 'Trombinoscope & anecdotes'}
-      </Text>
+      <ScreenHeader
+        title="Mémoire"
+        subtitle={
+          recipient
+            ? `Trombinoscope pour ${recipient.first_name}`
+            : 'Trombinoscope des proches'
+        }
+      />
 
       {loading ? (
         <ActivityIndicator color={AidAmiTheme.colors.accent} />
@@ -101,64 +112,93 @@ export function MemoryScreen() {
           {items.length === 0 ? (
             <Text style={styles.empty}>Aucun souvenir pour le moment.</Text>
           ) : (
-            items.map((item) => (
-              <View key={item.id} style={styles.row}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarLetter}>
-                    {item.title.charAt(0).toUpperCase()}
+            <View style={[styles.grid, { gap }]}>
+              {items.map((item) => (
+                <View
+                  key={item.id}
+                  style={[styles.card, { width: cardWidth }]}
+                  accessibilityRole="summary"
+                  accessibilityLabel={`${item.title}, ${item.relation_type ?? 'Proche'}`}
+                >
+                  <Avatar name={item.title} id={item.id} size={72} />
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {item.title}
                   </Text>
-                </View>
-                <View style={styles.rowText}>
-                  <Text style={styles.rowTitle}>{item.title}</Text>
-                  <Text style={styles.rowMeta}>
+                  <Text style={styles.cardMeta} numberOfLines={1}>
                     {item.relation_type ?? 'Proche'}
-                    {item.key_anecdote ? ` · ${item.key_anecdote}` : ''}
                   </Text>
                 </View>
-              </View>
-            ))
+              ))}
+            </View>
           )}
 
-          <Text style={styles.section}>Ajouter un souvenir</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Prénom / titre"
-            placeholderTextColor={AidAmiTheme.colors.secondary}
-            value={title}
-            onChangeText={setTitle}
-            accessibilityLabel="Titre du souvenir"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Lien (frère, amie…)"
-            placeholderTextColor={AidAmiTheme.colors.secondary}
-            value={relation}
-            onChangeText={setRelation}
-            accessibilityLabel="Type de relation"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Anecdote clé (optionnel)"
-            placeholderTextColor={AidAmiTheme.colors.secondary}
-            value={anecdote}
-            onChangeText={setAnecdote}
-            accessibilityLabel="Anecdote clé"
-          />
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              (!title.trim() || saving) && styles.buttonDisabled,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => void onAdd()}
-            disabled={!title.trim() || saving}
-            accessibilityRole="button"
-            accessibilityLabel="Ajouter le souvenir"
-          >
-            <Text style={styles.buttonLabel}>
-              {saving ? 'Ajout…' : 'Ajouter'}
-            </Text>
-          </Pressable>
+          {composerOpen ? (
+            <View style={styles.composer}>
+              <Text style={styles.composerTitle}>Ajouter un souvenir</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Prénom / titre"
+                placeholderTextColor={AidAmiTheme.colors.textMuted}
+                value={title}
+                onChangeText={setTitle}
+                accessibilityLabel="Titre du souvenir"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Lien (frère, amie…)"
+                placeholderTextColor={AidAmiTheme.colors.textMuted}
+                value={relation}
+                onChangeText={setRelation}
+                accessibilityLabel="Type de relation"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Anecdote clé (optionnel)"
+                placeholderTextColor={AidAmiTheme.colors.textMuted}
+                value={anecdote}
+                onChangeText={setAnecdote}
+                accessibilityLabel="Anecdote clé"
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.button,
+                  (!title.trim() || saving) && styles.buttonDisabled,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => void onAdd()}
+                disabled={!title.trim() || saving}
+                accessibilityRole="button"
+                accessibilityLabel="Ajouter le souvenir"
+              >
+                <Text style={styles.buttonLabel}>
+                  {saving ? 'Ajout…' : 'Ajouter'}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => setComposerOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Annuler"
+              >
+                <Text style={styles.secondaryLabel}>Annuler</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => setComposerOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Ajouter un souvenir"
+            >
+              <Text style={styles.buttonLabel}>+ Ajouter un proche</Text>
+            </Pressable>
+          )}
         </>
       )}
     </ScrollView>
@@ -173,74 +213,56 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
   },
-  title: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeTitle),
-    lineHeight: px(AidAmiTheme.typography.sizeTitle) * AidAmiTheme.typography.lineHeight,
-    fontWeight: '700',
-    color: AidAmiTheme.colors.primary,
-  },
-  subtitle: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeBody),
-    color: AidAmiTheme.colors.secondary,
-    marginBottom: 20,
-  },
   empty: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
-    color: AidAmiTheme.colors.secondary,
+    color: AidAmiTheme.colors.textMuted,
     marginBottom: 16,
   },
-  row: {
+  grid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 20,
+  },
+  card: {
+    backgroundColor: AidAmiTheme.colors.surface,
+    borderRadius: px(AidAmiTheme.borderRadius.card),
+    paddingVertical: 20,
+    paddingHorizontal: 12,
     alignItems: 'center',
-    gap: 14,
+    minHeight: 160,
+    ...AidAmiTheme.shadow.card,
+  },
+  cardTitle: {
+    marginTop: 12,
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
+    fontWeight: '700',
+    color: AidAmiTheme.colors.primary,
+    textAlign: 'center',
+  },
+  cardMeta: {
+    marginTop: 4,
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    color: AidAmiTheme.colors.textMuted,
+    textAlign: 'center',
+  },
+  composer: {
     backgroundColor: AidAmiTheme.colors.surface,
     borderRadius: px(AidAmiTheme.borderRadius.card),
     padding: 16,
-    marginBottom: 10,
-    minHeight: px(AidAmiTheme.touchTarget.minHeight),
+    ...AidAmiTheme.shadow.card,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: AidAmiTheme.colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: 18,
-    fontWeight: '700',
-    color: AidAmiTheme.colors.primary,
-  },
-  rowText: {
-    flex: 1,
-    gap: 2,
-  },
-  rowTitle: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeBody),
-    fontWeight: '600',
-    color: AidAmiTheme.colors.textPrimary,
-  },
-  rowMeta: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: 14,
-    color: AidAmiTheme.colors.secondary,
-  },
-  section: {
+  composerTitle: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeSubTitle),
-    fontWeight: '600',
+    fontWeight: '700',
     color: AidAmiTheme.colors.primary,
-    marginTop: 16,
     marginBottom: 12,
   },
   input: {
-    backgroundColor: AidAmiTheme.colors.surface,
+    backgroundColor: AidAmiTheme.colors.surfaceMuted,
     borderRadius: px(AidAmiTheme.borderRadius.button),
     minHeight: px(AidAmiTheme.touchTarget.minHeight),
     paddingHorizontal: 16,
@@ -266,8 +288,19 @@ const styles = StyleSheet.create({
   buttonLabel: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
+    fontWeight: '700',
+    color: AidAmiTheme.colors.onAccent,
+  },
+  secondaryButton: {
+    minHeight: px(AidAmiTheme.touchTarget.minHeight),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryLabel: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
     fontWeight: '600',
-    color: AidAmiTheme.colors.primary,
+    color: AidAmiTheme.colors.textMuted,
   },
   error: {
     fontFamily: AidAmiTheme.typography.fontFamily,

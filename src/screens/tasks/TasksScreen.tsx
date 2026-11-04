@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -19,6 +19,12 @@ import {
 } from '../../db';
 import type { CareRecipient, Task, User } from '../../types/models';
 import { AidAmiTheme, px } from '../../theme/AidAmiTheme';
+import {
+  dayKey,
+  formatDayHeading,
+  formatTimeFr,
+  ScreenHeader,
+} from '../../ui';
 
 const CATEGORY_LABEL: Record<string, string> = {
   MEDICATION: 'Médicament',
@@ -28,6 +34,51 @@ const CATEGORY_LABEL: Record<string, string> = {
   HYGIENE: 'Hygiène',
 };
 
+/** Friendly subtitles for known demo titles (falls back to category). */
+const DEMO_SUBTITLE: Record<string, string> = {
+  'Petit-déjeuner': 'Routine du matin',
+  'Promenade au parc': 'Activité physique légère',
+  'Préparation dîner': 'Recette favorite',
+  'Visite famille': 'Chez Marie & Jean',
+};
+
+function taskSubtitle(task: Task): string | null {
+  if (DEMO_SUBTITLE[task.title]) return DEMO_SUBTITLE[task.title];
+  if (task.category) return CATEGORY_LABEL[task.category] ?? task.category;
+  return null;
+}
+
+type TaskGroup = {
+  key: string;
+  heading: string;
+  tasks: Task[];
+};
+
+function groupTasks(tasks: Task[]): TaskGroup[] {
+  const map = new Map<string, Task[]>();
+  for (const task of tasks) {
+    const key = dayKey(task.scheduled_at ?? task.created_at);
+    const list = map.get(key) ?? [];
+    list.push(task);
+    map.set(key, list);
+  }
+
+  return [...map.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, groupTasksList]) => {
+      const sample = groupTasksList[0];
+      return {
+        key,
+        heading: formatDayHeading(sample.scheduled_at ?? sample.created_at),
+        tasks: [...groupTasksList].sort((left, right) => {
+          const leftTime = left.scheduled_at ?? left.created_at;
+          const rightTime = right.scheduled_at ?? right.created_at;
+          return leftTime.localeCompare(rightTime);
+        }),
+      };
+    });
+}
+
 export function TasksScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
@@ -35,8 +86,11 @@ export function TasksScreen() {
   const [recipient, setRecipient] = useState<CareRecipient | null>(null);
   const [activeUser, setActiveUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [composerOpen, setComposerOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const groups = useMemo(() => groupTasks(tasks), [tasks]);
 
   const load = useCallback(async () => {
     try {
@@ -68,8 +122,10 @@ export function TasksScreen() {
         care_recipient_id: recipient.id,
         title: title.trim(),
         category: 'ROUTINE',
+        scheduled_at: new Date().toISOString(),
       });
       setTitle('');
+      setComposerOpen(false);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -100,12 +156,14 @@ export function TasksScreen() {
       keyboardShouldPersistTaps="handled"
       accessibilityLabel="Module Tâches"
     >
-      <Text style={styles.title}>Tâches</Text>
-      <Text style={styles.subtitle}>
-        {recipient
-          ? `Agenda & routines pour ${recipient.first_name}`
-          : 'Agenda & routines'}
-      </Text>
+      <ScreenHeader
+        title="Tâches"
+        subtitle={
+          recipient
+            ? `Agenda & routines pour ${recipient.first_name}`
+            : 'Agenda & routines quotidiennes'
+        }
+      />
 
       {loading ? (
         <ActivityIndicator color={AidAmiTheme.colors.accent} />
@@ -116,68 +174,98 @@ export function TasksScreen() {
           {tasks.length === 0 ? (
             <Text style={styles.empty}>Aucune tâche pour le moment.</Text>
           ) : (
-            tasks.map((task) => (
-              <Pressable
-                key={task.id}
-                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-                onPress={() => void onToggle(task)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: task.is_completed === 1 }}
-                accessibilityLabel={`${task.title}, ${task.is_completed ? 'terminée' : 'à faire'}`}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    task.is_completed === 1 && styles.checkboxDone,
-                  ]}
-                >
-                  {task.is_completed === 1 ? (
-                    <Text style={styles.checkMark}>✓</Text>
-                  ) : null}
-                </View>
-                <View style={styles.rowText}>
-                  <Text
-                    style={[
-                      styles.rowTitle,
-                      task.is_completed === 1 && styles.rowTitleDone,
-                    ]}
-                  >
-                    {task.title}
-                  </Text>
-                  {task.category ? (
-                    <Text style={styles.rowMeta}>
-                      {CATEGORY_LABEL[task.category] ?? task.category}
-                    </Text>
-                  ) : null}
-                </View>
-              </Pressable>
+            groups.map((group) => (
+              <View key={group.key} style={styles.group}>
+                <Text style={styles.dayHeading}>{group.heading}</Text>
+                {group.tasks.map((task) => {
+                  const time = formatTimeFr(task.scheduled_at);
+                  const done = task.is_completed === 1;
+                  return (
+                    <Pressable
+                      key={task.id}
+                      style={({ pressed }) => [
+                        styles.card,
+                        pressed && styles.pressed,
+                      ]}
+                      onPress={() => void onToggle(task)}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: done }}
+                      accessibilityLabel={`${task.title}, ${done ? 'terminée' : 'à faire'}`}
+                    >
+                      <View
+                        style={[styles.checkbox, done && styles.checkboxDone]}
+                      >
+                        {done ? <Text style={styles.checkMark}>✓</Text> : null}
+                      </View>
+                      <View style={styles.cardText}>
+                        {time ? <Text style={styles.time}>{time}</Text> : null}
+                        <Text
+                          style={[styles.cardTitle, done && styles.cardTitleDone]}
+                        >
+                          {task.title}
+                        </Text>
+                        {taskSubtitle(task) ? (
+                          <Text style={styles.cardMeta}>{taskSubtitle(task)}</Text>
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
             ))
           )}
 
-          <Text style={styles.section}>Nouvelle tâche</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Titre de la tâche"
-            placeholderTextColor={AidAmiTheme.colors.secondary}
-            value={title}
-            onChangeText={setTitle}
-            accessibilityLabel="Titre de la tâche"
-          />
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              (!title.trim() || saving) && styles.buttonDisabled,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => void onAdd()}
-            disabled={!title.trim() || saving}
-            accessibilityRole="button"
-            accessibilityLabel="Ajouter la tâche"
-          >
-            <Text style={styles.buttonLabel}>
-              {saving ? 'Ajout…' : 'Ajouter'}
-            </Text>
-          </Pressable>
+          {composerOpen ? (
+            <View style={styles.composer}>
+              <Text style={styles.composerTitle}>Nouvelle tâche</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Titre de la tâche"
+                placeholderTextColor={AidAmiTheme.colors.textMuted}
+                value={title}
+                onChangeText={setTitle}
+                accessibilityLabel="Titre de la tâche"
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.button,
+                  (!title.trim() || saving) && styles.buttonDisabled,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => void onAdd()}
+                disabled={!title.trim() || saving}
+                accessibilityRole="button"
+                accessibilityLabel="Ajouter la tâche"
+              >
+                <Text style={styles.buttonLabel}>
+                  {saving ? 'Ajout…' : 'Ajouter'}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => setComposerOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Annuler"
+              >
+                <Text style={styles.secondaryLabel}>Annuler</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => setComposerOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Ajouter une tâche"
+            >
+              <Text style={styles.buttonLabel}>+ Ajouter une tâche</Text>
+            </Pressable>
+          )}
         </>
       )}
     </ScrollView>
@@ -192,41 +280,40 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
   },
-  title: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeTitle),
-    lineHeight: px(AidAmiTheme.typography.sizeTitle) * AidAmiTheme.typography.lineHeight,
-    fontWeight: '700',
-    color: AidAmiTheme.colors.primary,
-  },
-  subtitle: {
-    fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: px(AidAmiTheme.typography.sizeBody),
-    color: AidAmiTheme.colors.secondary,
-    marginBottom: 20,
-  },
   empty: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
-    color: AidAmiTheme.colors.secondary,
+    color: AidAmiTheme.colors.textMuted,
     marginBottom: 16,
   },
-  row: {
+  group: {
+    marginBottom: 8,
+  },
+  dayHeading: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
+    fontWeight: '700',
+    color: AidAmiTheme.colors.primary,
+    marginBottom: 12,
+  },
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     backgroundColor: AidAmiTheme.colors.surface,
     borderRadius: px(AidAmiTheme.borderRadius.card),
+    borderWidth: 1,
+    borderColor: AidAmiTheme.colors.border,
     padding: 16,
     marginBottom: 10,
-    minHeight: px(AidAmiTheme.touchTarget.minHeight),
+    minHeight: px(AidAmiTheme.touchTarget.minHeight) + 16,
   },
   checkbox: {
     width: 28,
     height: 28,
-    borderRadius: 8,
+    borderRadius: 14,
     borderWidth: 2,
-    borderColor: AidAmiTheme.colors.primary,
+    borderColor: AidAmiTheme.colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -235,39 +322,50 @@ const styles = StyleSheet.create({
     borderColor: AidAmiTheme.colors.accent,
   },
   checkMark: {
-    color: AidAmiTheme.colors.primary,
+    color: AidAmiTheme.colors.onAccent,
     fontWeight: '700',
     fontSize: 16,
   },
-  rowText: {
+  cardText: {
     flex: 1,
     gap: 2,
   },
-  rowTitle: {
+  time: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    color: AidAmiTheme.colors.textMuted,
+  },
+  cardTitle: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
-    fontWeight: '600',
-    color: AidAmiTheme.colors.textPrimary,
+    fontWeight: '700',
+    color: AidAmiTheme.colors.primary,
   },
-  rowTitleDone: {
+  cardTitleDone: {
     textDecorationLine: 'line-through',
-    color: AidAmiTheme.colors.secondary,
+    color: AidAmiTheme.colors.textMuted,
   },
-  rowMeta: {
+  cardMeta: {
     fontFamily: AidAmiTheme.typography.fontFamily,
-    fontSize: 14,
-    color: AidAmiTheme.colors.secondary,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    color: AidAmiTheme.colors.textMuted,
   },
-  section: {
+  composer: {
+    backgroundColor: AidAmiTheme.colors.surface,
+    borderRadius: px(AidAmiTheme.borderRadius.card),
+    padding: 16,
+    marginTop: 8,
+    ...AidAmiTheme.shadow.card,
+  },
+  composerTitle: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeSubTitle),
-    fontWeight: '600',
+    fontWeight: '700',
     color: AidAmiTheme.colors.primary,
-    marginTop: 16,
     marginBottom: 12,
   },
   input: {
-    backgroundColor: AidAmiTheme.colors.surface,
+    backgroundColor: AidAmiTheme.colors.surfaceMuted,
     borderRadius: px(AidAmiTheme.borderRadius.button),
     minHeight: px(AidAmiTheme.touchTarget.minHeight),
     paddingHorizontal: 16,
@@ -283,6 +381,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 8,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -293,8 +392,19 @@ const styles = StyleSheet.create({
   buttonLabel: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
+    fontWeight: '700',
+    color: AidAmiTheme.colors.onAccent,
+  },
+  secondaryButton: {
+    minHeight: px(AidAmiTheme.touchTarget.minHeight),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryLabel: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
     fontWeight: '600',
-    color: AidAmiTheme.colors.primary,
+    color: AidAmiTheme.colors.textMuted,
   },
   error: {
     fontFamily: AidAmiTheme.typography.fontFamily,
