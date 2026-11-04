@@ -27,6 +27,7 @@ import {
   dayKey,
   formatDayGroupShort,
   formatTimeFr,
+  ProfileGuidanceBanner,
   ScreenHeader,
 } from '../../ui';
 
@@ -177,6 +178,13 @@ export function BehaviorLogsScreen() {
               : 'Suivi des surcharges & crises'
           }
         />
+
+        {recipient ? (
+          <ProfileGuidanceBanner
+            profileType={recipient.profile_type}
+            moduleKey="behavior"
+          />
+        ) : null}
 
         <View style={styles.chipRow}>
           {INTENSITIES.map((item) => {
