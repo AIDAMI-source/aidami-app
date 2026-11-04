@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -12,8 +12,21 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../auth';
-import { initializeDatabase, type DbInitResult } from '../db/database';
+import {
+  getAppSession,
+  initializeDatabase,
+  setActiveCareRecipientId,
+  updateCareRecipient,
+  type DbInitResult,
+} from '../db';
 import type { RootTabParamList } from '../navigation/types';
+import {
+  moduleEmphasisForProfile,
+  PROFILE_TYPE_LABELS,
+  profileGuidanceSentence,
+  type ModuleEmphasis,
+  type ModuleKey,
+} from '../profile';
 import {
   flushSyncQueue,
   getSyncQueueDepth,
@@ -21,33 +34,59 @@ import {
   type FlushSyncResult,
 } from '../sync';
 import { AidAmiTheme, px } from '../theme/AidAmiTheme';
+import type { CareRecipient, ProfileType } from '../types/models';
+import { ProfileTypePicker } from '../ui';
 
-const MODULES = [
+const MODULES: {
+  key: ModuleKey;
+  route: keyof RootTabParamList;
+  label: string;
+  hint: string;
+}[] = [
   {
     key: 'household',
-    route: 'Foyer' as const,
+    route: 'Foyer',
     label: 'Foyer',
     hint: 'Aidants & invitations',
   },
   {
     key: 'tasks',
-    route: 'Taches' as const,
+    route: 'Taches',
     label: 'Tâches',
     hint: 'Agenda & routines',
   },
   {
     key: 'behavior',
-    route: 'Comportements' as const,
+    route: 'Comportements',
     label: 'Comportements',
     hint: 'Surcharge & crises',
   },
   {
     key: 'memory',
-    route: 'Memoire' as const,
+    route: 'Memoire',
     label: 'Mémoire',
     hint: 'Trombinoscope',
   },
-] as const;
+];
+
+function sortModulesForProfile(profileType: ProfileType | null) {
+  if (!profileType) return MODULES;
+  return [...MODULES].sort((a, b) => {
+    const rank = (key: ModuleKey) => {
+      const e = moduleEmphasisForProfile(profileType, key);
+      if (e === 'emphasized') return 0;
+      if (e === 'normal') return 1;
+      return 2;
+    };
+    return rank(a.key) - rank(b.key);
+  });
+}
+
+function moduleStyle(emphasis: ModuleEmphasis) {
+  if (emphasis === 'emphasized') return styles.moduleEmphasized;
+  if (emphasis === 'deemphasized') return styles.moduleDeemphasized;
+  return null;
+}
 
 export function HomeScreen() {
   const navigation =
@@ -60,6 +99,9 @@ export function HomeScreen() {
   const [queueDepth, setQueueDepth] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [lastFlush, setLastFlush] = useState<FlushSyncResult | null>(null);
+  const [recipient, setRecipient] = useState<CareRecipient | null>(null);
+  const [savingType, setSavingType] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const transportName = getSyncTransport().name;
 
   const refreshQueueDepth = useCallback(async () => {
@@ -68,6 +110,16 @@ export function HomeScreen() {
       setQueueDepth(depth);
     } catch {
       setQueueDepth(null);
+    }
+  }, []);
+
+  const loadRecipient = useCallback(async () => {
+    try {
+      const session = await getAppSession();
+      setRecipient(session.careRecipient);
+      setProfileError(null);
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : String(err));
     }
   }, []);
 
@@ -81,6 +133,7 @@ export function HomeScreen() {
         setLoading(false);
         if (result.ok) {
           await refreshQueueDepth();
+          await loadRecipient();
         }
       }
     })();
@@ -88,7 +141,35 @@ export function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [refreshQueueDepth]);
+  }, [refreshQueueDepth, loadRecipient]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (dbStatus?.ok) {
+        void loadRecipient();
+        void refreshQueueDepth();
+      }
+    }, [dbStatus?.ok, loadRecipient, refreshQueueDepth]),
+  );
+
+  const onChangeProfileType = async (type: ProfileType) => {
+    if (!recipient || savingType || type === recipient.profile_type) return;
+    setSavingType(true);
+    try {
+      const updated = await updateCareRecipient(recipient.id, {
+        profile_type: type,
+      });
+      if (updated) {
+        setActiveCareRecipientId(updated.id);
+        setRecipient(updated);
+      }
+      await refreshQueueDepth();
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingType(false);
+    }
+  };
 
   const onSynchroniser = async () => {
     if (syncing || !dbStatus?.ok) return;
@@ -122,6 +203,8 @@ export function HomeScreen() {
         ? 'File vide — à jour'
         : `${queueDepth} mutation(s) en file`;
 
+  const modules = sortModulesForProfile(recipient?.profile_type ?? null);
+
   return (
     <ScrollView
       style={styles.scroll}
@@ -135,6 +218,42 @@ export function HomeScreen() {
       <Text style={styles.subtitle}>
         Accompagnement Alzheimer & TSA-TDAH — hors-ligne d'abord.
       </Text>
+
+      {dbStatus?.ok && recipient ? (
+        <View
+          style={styles.profileCard}
+          accessibilityLabel={`Proche actif ${recipient.first_name}, profil ${PROFILE_TYPE_LABELS[recipient.profile_type]}`}
+        >
+          <Text style={styles.statusTitle}>Proche accompagné</Text>
+          <Text style={styles.profileName}>{recipient.first_name}</Text>
+          <Text style={styles.profileMeta}>
+            Profil actuel : {PROFILE_TYPE_LABELS[recipient.profile_type]}
+          </Text>
+          <Text style={styles.guidance}>
+            {profileGuidanceSentence(recipient.profile_type)}
+          </Text>
+          <Text style={styles.pickerLabel}>Changer le type de profil</Text>
+          <ProfileTypePicker
+            selected={recipient.profile_type}
+            onSelect={(type) => void onChangeProfileType(type)}
+            disabled={savingType}
+          />
+          <Pressable
+            style={({ pressed }) => [
+              styles.foyerLink,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => navigation.navigate('Foyer')}
+            accessibilityRole="button"
+            accessibilityLabel="Choisir un autre proche dans le Foyer"
+          >
+            <Text style={styles.foyerLinkLabel}>
+              Choisir un autre proche (Foyer)
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {profileError ? <Text style={styles.statusError}>{profileError}</Text> : null}
 
       <View style={styles.statusCard}>
         <Text style={styles.statusTitle}>Base locale</Text>
@@ -223,23 +342,49 @@ export function HomeScreen() {
       </View>
 
       <Text style={styles.sectionLabel}>Modules</Text>
+      {recipient ? (
+        <Text style={styles.modulesHint} accessibilityLiveRegion="polite">
+          Ordre adapté au profil {PROFILE_TYPE_LABELS[recipient.profile_type]} —
+          tous les onglets restent accessibles.
+        </Text>
+      ) : null}
       <View style={styles.moduleList}>
-        {MODULES.map((mod) => (
-          <Pressable
-            key={mod.key}
-            style={({ pressed }) => [
-              styles.moduleButton,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={`Ouvrir ${mod.label}`}
-            accessibilityHint={mod.hint}
-            onPress={() => navigation.navigate(mod.route)}
-          >
-            <Text style={styles.moduleLabel}>{mod.label}</Text>
-            <Text style={styles.moduleHint}>{mod.hint}</Text>
-          </Pressable>
-        ))}
+        {modules.map((mod) => {
+          const emphasis = recipient
+            ? moduleEmphasisForProfile(recipient.profile_type, mod.key)
+            : 'normal';
+          const emphasisHint =
+            emphasis === 'emphasized'
+              ? 'Recommandé pour ce profil'
+              : emphasis === 'deemphasized'
+                ? 'Moins prioritaire pour ce profil'
+                : mod.hint;
+          return (
+            <Pressable
+              key={mod.key}
+              style={({ pressed }) => [
+                styles.moduleButton,
+                moduleStyle(emphasis),
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Ouvrir ${mod.label}`}
+              accessibilityHint={emphasisHint}
+              onPress={() => navigation.navigate(mod.route)}
+            >
+              <View style={styles.moduleTitleRow}>
+                <Text style={styles.moduleLabel}>{mod.label}</Text>
+                {emphasis === 'emphasized' ? (
+                  <Text style={styles.emphasisBadge}>Prioritaire</Text>
+                ) : null}
+                {emphasis === 'deemphasized' ? (
+                  <Text style={styles.deemphasisBadge}>Secondaire</Text>
+                ) : null}
+              </View>
+              <Text style={styles.moduleHint}>{mod.hint}</Text>
+            </Pressable>
+          );
+        })}
       </View>
     </ScrollView>
   );
@@ -270,6 +415,58 @@ const styles = StyleSheet.create({
       px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
     color: AidAmiTheme.colors.primary,
     marginBottom: 28,
+  },
+  profileCard: {
+    backgroundColor: AidAmiTheme.colors.surfaceMuted,
+    borderRadius: px(AidAmiTheme.borderRadius.card),
+    padding: 20,
+    marginBottom: 20,
+  },
+  profileName: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeSubTitle),
+    fontWeight: '700',
+    color: AidAmiTheme.colors.primary,
+    marginBottom: 4,
+  },
+  profileMeta: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
+    color: AidAmiTheme.colors.textPrimary,
+    marginBottom: 6,
+  },
+  guidance: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    lineHeight:
+      px(AidAmiTheme.typography.sizeCaption) *
+      AidAmiTheme.typography.lineHeight,
+    color: AidAmiTheme.colors.textMuted,
+    marginBottom: 14,
+  },
+  pickerLabel: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    fontWeight: '600',
+    color: AidAmiTheme.colors.primary,
+    marginBottom: 8,
+  },
+  foyerLink: {
+    marginTop: 14,
+    minHeight: px(AidAmiTheme.touchTarget.minHeight),
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: px(AidAmiTheme.borderRadius.button),
+    borderWidth: 1,
+    borderColor: AidAmiTheme.colors.border,
+    backgroundColor: AidAmiTheme.colors.surface,
+    paddingHorizontal: 16,
+  },
+  foyerLinkLabel: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
+    fontWeight: '600',
+    color: AidAmiTheme.colors.primary,
   },
   statusCard: {
     backgroundColor: AidAmiTheme.colors.surfaceMuted,
@@ -312,6 +509,7 @@ const styles = StyleSheet.create({
     lineHeight:
       px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
     color: AidAmiTheme.colors.emotionalRed,
+    marginBottom: 12,
   },
   syncMeta: {
     fontFamily: AidAmiTheme.typography.fontFamily,
@@ -365,6 +563,12 @@ const styles = StyleSheet.create({
       AidAmiTheme.typography.lineHeight,
     fontWeight: '700',
     color: AidAmiTheme.colors.primary,
+    marginBottom: 8,
+  },
+  modulesHint: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    color: AidAmiTheme.colors.textMuted,
     marginBottom: 12,
   },
   moduleList: {
@@ -377,6 +581,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     justifyContent: 'center',
+  },
+  moduleEmphasized: {
+    borderWidth: 3,
+    borderColor: AidAmiTheme.colors.primary,
+  },
+  moduleDeemphasized: {
+    opacity: 0.55,
+    backgroundColor: AidAmiTheme.colors.secondary,
+  },
+  moduleTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  emphasisBadge: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: 12,
+    fontWeight: '700',
+    color: AidAmiTheme.colors.onAccent,
+    backgroundColor: AidAmiTheme.colors.primary,
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  deemphasisBadge: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: 12,
+    fontWeight: '600',
+    color: AidAmiTheme.colors.onAccent,
+    opacity: 0.9,
   },
   pressed: {
     opacity: 0.85,

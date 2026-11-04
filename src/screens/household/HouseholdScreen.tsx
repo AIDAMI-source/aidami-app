@@ -14,11 +14,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createUser,
   getAppSession,
+  setActiveCareRecipientId,
+  updateCareRecipient,
   listUsersByHousehold,
 } from '../../db';
-import type { Household, User } from '../../types/models';
+import { PROFILE_TYPE_LABELS } from '../../profile';
+import type { CareRecipient, Household, ProfileType, User } from '../../types/models';
 import { AidAmiTheme, px } from '../../theme/AidAmiTheme';
-import { Avatar, ScreenHeader, SectionHeader } from '../../ui';
+import {
+  Avatar,
+  CareRecipientSelector,
+  ProfileTypePicker,
+  ScreenHeader,
+  SectionHeader,
+} from '../../ui';
 
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Aidant principal',
@@ -32,10 +41,15 @@ export function HouseholdScreen() {
   const [error, setError] = useState<string | null>(null);
   const [household, setHousehold] = useState<Household | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [recipients, setRecipients] = useState<CareRecipient[]>([]);
+  const [activeRecipient, setActiveRecipient] = useState<CareRecipient | null>(
+    null,
+  );
   const [inviteOpen, setInviteOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [saving, setSaving] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -44,6 +58,8 @@ export function HouseholdScreen() {
       const list = await listUsersByHousehold(session.household.id);
       setHousehold(session.household);
       setUsers(list);
+      setRecipients(session.careRecipients);
+      setActiveRecipient(session.careRecipient);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -57,6 +73,34 @@ export function HouseholdScreen() {
       void load();
     }, [load]),
   );
+
+  const onSelectRecipient = (recipient: CareRecipient) => {
+    setActiveCareRecipientId(recipient.id);
+    setActiveRecipient(recipient);
+  };
+
+  const onChangeProfileType = async (type: ProfileType) => {
+    if (!activeRecipient || savingProfile || type === activeRecipient.profile_type) {
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const updated = await updateCareRecipient(activeRecipient.id, {
+        profile_type: type,
+      });
+      if (updated) {
+        setActiveCareRecipientId(updated.id);
+        setActiveRecipient(updated);
+        setRecipients((prev) =>
+          prev.map((row) => (row.id === updated.id ? updated : row)),
+        );
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const onAddCaregiver = async () => {
     if (!household || !name.trim() || !email.trim() || saving) return;
@@ -94,7 +138,7 @@ export function HouseholdScreen() {
     >
       <ScreenHeader
         title="Foyer"
-        subtitle="Gérez les aidants et invitations"
+        subtitle="Gérez les aidants, le proche et son profil"
       />
 
       {loading ? (
@@ -103,6 +147,38 @@ export function HouseholdScreen() {
         <Text style={styles.error}>{error}</Text>
       ) : household ? (
         <>
+          <SectionHeader title="Proche accompagné" count={recipients.length} />
+          <View style={styles.profileCard}>
+            {recipients.length === 0 ? (
+              <Text style={styles.emptyInline}>Aucun proche pour le moment.</Text>
+            ) : (
+              <>
+                <CareRecipientSelector
+                  recipients={recipients}
+                  activeId={activeRecipient?.id ?? ''}
+                  onSelect={onSelectRecipient}
+                  disabled={savingProfile}
+                />
+                {activeRecipient ? (
+                  <View style={styles.typeBlock}>
+                    <Text style={styles.typeTitle}>
+                      Type de profil — {activeRecipient.first_name}
+                    </Text>
+                    <Text style={styles.typeMeta}>
+                      Actuel :{' '}
+                      {PROFILE_TYPE_LABELS[activeRecipient.profile_type]}
+                    </Text>
+                    <ProfileTypePicker
+                      selected={activeRecipient.profile_type}
+                      onSelect={(type) => void onChangeProfileType(type)}
+                      disabled={savingProfile}
+                    />
+                  </View>
+                ) : null}
+              </>
+            )}
+          </View>
+
           <SectionHeader title="Aidants actifs" count={users.length} />
           <View style={styles.listCard}>
             {users.length === 0 ? (
@@ -212,6 +288,32 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 24,
+  },
+  profileCard: {
+    backgroundColor: AidAmiTheme.colors.surface,
+    borderRadius: px(AidAmiTheme.borderRadius.card),
+    padding: 16,
+    marginBottom: 24,
+    ...AidAmiTheme.shadow.card,
+  },
+  typeBlock: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: AidAmiTheme.colors.border,
+  },
+  typeTitle: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
+    fontWeight: '700',
+    color: AidAmiTheme.colors.primary,
+    marginBottom: 4,
+  },
+  typeMeta: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    color: AidAmiTheme.colors.textMuted,
+    marginBottom: 10,
   },
   listCard: {
     backgroundColor: AidAmiTheme.colors.surface,

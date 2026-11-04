@@ -19,7 +19,12 @@ import {
 } from '../../db';
 import type { CareRecipient, MemoryItem } from '../../types/models';
 import { AidAmiTheme, px } from '../../theme/AidAmiTheme';
-import { AudioMemoControl, Avatar, ScreenHeader } from '../../ui';
+import {
+  AudioMemoControl,
+  Avatar,
+  ProfileGuidanceBanner,
+  ScreenHeader,
+} from '../../ui';
 
 export function MemoryScreen() {
   const insets = useSafeAreaInsets();
@@ -106,6 +111,13 @@ export function MemoryScreen() {
             : 'Trombinoscope des proches'
         }
       />
+
+      {recipient ? (
+        <ProfileGuidanceBanner
+          profileType={recipient.profile_type}
+          moduleKey="memory"
+        />
+      ) : null}
 
       {loading ? (
         <ActivityIndicator color={AidAmiTheme.colors.accent} />

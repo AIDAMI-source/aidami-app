@@ -15,7 +15,10 @@ export const DEMO_IDS = {
   household: 'demo-household-001',
   admin: 'demo-user-admin',
   caregiver: 'demo-user-caregiver',
+  /** Default / MIXED demo proche */
   careRecipient: 'demo-recipient-lea',
+  careRecipientAlzheimer: 'demo-recipient-paul',
+  careRecipientTsa: 'demo-recipient-noah',
 } as const;
 
 export type SeedResult = {
@@ -120,16 +123,39 @@ export async function seedIfEmpty(): Promise<SeedResult> {
     updated_at: now,
   };
 
-  const recipient: CareRecipient = {
-    id: DEMO_IDS.careRecipient,
-    household_id: household.id,
-    first_name: 'Léa',
-    profile_type: 'MIXED',
-    avatar_url: null,
-    notes: 'Démo — Alzheimer + sensibilités sensorielles',
-    created_at: now,
-    updated_at: now,
-  };
+  const recipients: CareRecipient[] = [
+    {
+      id: DEMO_IDS.careRecipient,
+      household_id: household.id,
+      first_name: 'Léa',
+      profile_type: 'MIXED',
+      avatar_url: null,
+      notes: 'Démo — Alzheimer + sensibilités sensorielles',
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: DEMO_IDS.careRecipientAlzheimer,
+      household_id: household.id,
+      first_name: 'Paul',
+      profile_type: 'ALZHEIMER',
+      avatar_url: null,
+      notes: 'Démo — profil Alzheimer (mémoire)',
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: DEMO_IDS.careRecipientTsa,
+      household_id: household.id,
+      first_name: 'Noah',
+      profile_type: 'TSA_TDAH',
+      avatar_url: null,
+      notes: 'Démo — profil TSA / TDAH (comportements)',
+      created_at: now,
+      updated_at: now,
+    },
+  ];
+  const recipient = recipients[0];
 
   const breakfastAt = atLocalHour(today, 8, 0);
   const walkAt = atLocalHour(today, 14, 30);
@@ -346,20 +372,22 @@ export async function seedIfEmpty(): Promise<SeedResult> {
       await enqueueSync(db, 'users', user.id, 'CREATE', user);
     }
 
-    await db.runAsync(
-      `INSERT INTO care_recipients
-        (id, household_id, first_name, profile_type, avatar_url, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      recipient.id,
-      recipient.household_id,
-      recipient.first_name,
-      recipient.profile_type,
-      recipient.avatar_url,
-      recipient.notes,
-      recipient.created_at,
-      recipient.updated_at,
-    );
-    await enqueueSync(db, 'care_recipients', recipient.id, 'CREATE', recipient);
+    for (const proche of recipients) {
+      await db.runAsync(
+        `INSERT INTO care_recipients
+          (id, household_id, first_name, profile_type, avatar_url, notes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        proche.id,
+        proche.household_id,
+        proche.first_name,
+        proche.profile_type,
+        proche.avatar_url,
+        proche.notes,
+        proche.created_at,
+        proche.updated_at,
+      );
+      await enqueueSync(db, 'care_recipients', proche.id, 'CREATE', proche);
+    }
 
     for (const task of tasks) {
       await db.runAsync(
@@ -435,4 +463,85 @@ export async function seedIfEmpty(): Promise<SeedResult> {
     userId: admin.id,
     careRecipientId: recipient.id,
   };
+}
+
+type DemoRecipientSpec = {
+  id: string;
+  first_name: string;
+  profile_type: CareRecipient['profile_type'];
+  notes: string;
+};
+
+const DEMO_RECIPIENT_SPECS: DemoRecipientSpec[] = [
+  {
+    id: DEMO_IDS.careRecipient,
+    first_name: 'Léa',
+    profile_type: 'MIXED',
+    notes: 'Démo — Alzheimer + sensibilités sensorielles',
+  },
+  {
+    id: DEMO_IDS.careRecipientAlzheimer,
+    first_name: 'Paul',
+    profile_type: 'ALZHEIMER',
+    notes: 'Démo — profil Alzheimer (mémoire)',
+  },
+  {
+    id: DEMO_IDS.careRecipientTsa,
+    first_name: 'Noah',
+    profile_type: 'TSA_TDAH',
+    notes: 'Démo — profil TSA / TDAH (comportements)',
+  },
+];
+
+/**
+ * Ensures the demo foyer has at least one proche per profile_type.
+ * Safe to call on every launch; only inserts missing stable demo rows.
+ */
+export async function ensureDemoRecipientsPerType(
+  householdId: string,
+): Promise<void> {
+  if (householdId !== DEMO_IDS.household) return;
+
+  const db = await getDatabase();
+  const existing = await db.getAllAsync<CareRecipient>(
+    `SELECT * FROM care_recipients WHERE household_id = ?`,
+    householdId,
+  );
+  const byId = new Set(existing.map((row) => row.id));
+  const typesPresent = new Set(existing.map((row) => row.profile_type));
+  const now = nowIso();
+
+  for (const spec of DEMO_RECIPIENT_SPECS) {
+    if (byId.has(spec.id)) continue;
+    if (typesPresent.has(spec.profile_type)) continue;
+
+    const proche: CareRecipient = {
+      id: spec.id,
+      household_id: householdId,
+      first_name: spec.first_name,
+      profile_type: spec.profile_type,
+      avatar_url: null,
+      notes: spec.notes,
+      created_at: now,
+      updated_at: now,
+    };
+
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `INSERT INTO care_recipients
+          (id, household_id, first_name, profile_type, avatar_url, notes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        proche.id,
+        proche.household_id,
+        proche.first_name,
+        proche.profile_type,
+        proche.avatar_url,
+        proche.notes,
+        proche.created_at,
+        proche.updated_at,
+      );
+      await enqueueSync(db, 'care_recipients', proche.id, 'CREATE', proche);
+    });
+    typesPresent.add(spec.profile_type);
+  }
 }
