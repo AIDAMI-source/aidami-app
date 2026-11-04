@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 
+import { runMigrations } from './migrations';
 import { EXPECTED_TABLES, SCHEMA_SQL } from './schema';
 
 const DB_NAME = 'aidami.db';
@@ -34,6 +35,7 @@ export async function initializeDatabase(): Promise<DbInitResult> {
   try {
     const db = await openDb();
     await db.execAsync(SCHEMA_SQL);
+    await runMigrations(db);
     schemaReady = true;
 
     const rows = await db.getAllAsync<{ name: string }>(
@@ -64,6 +66,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   const db = await openDb();
   if (!schemaReady) {
     await db.execAsync(SCHEMA_SQL);
+    await runMigrations(db);
     schemaReady = true;
   }
   return db;

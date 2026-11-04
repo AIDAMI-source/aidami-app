@@ -101,4 +101,7 @@ export type SyncQueueItem = {
   action_type: SyncActionType;
   payload_json: string;
   created_at: SqliteTimestamp;
+  attempts: number;
+  last_error: string | null;
+  next_attempt_at: SqliteTimestamp | null;
 };

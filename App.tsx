@@ -1,9 +1,11 @@
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RootTabNavigator } from './src/navigation';
+import { startSyncLifecycle } from './src/sync';
 import { AidAmiTheme } from './src/theme/AidAmiTheme';
 
 const navigationTheme = {
@@ -20,6 +22,11 @@ const navigationTheme = {
 };
 
 export default function App() {
+  useEffect(() => {
+    const { stop } = startSyncLifecycle();
+    return stop;
+  }, []);
+
   return (
     <SafeAreaProvider style={styles.root}>
       <StatusBar style="dark" />
