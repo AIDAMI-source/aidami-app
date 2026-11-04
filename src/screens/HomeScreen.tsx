@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +13,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { initializeDatabase, type DbInitResult } from '../db/database';
 import type { RootTabParamList } from '../navigation/types';
+import {
+  flushSyncQueue,
+  getSyncQueueDepth,
+  type FlushSyncResult,
+} from '../sync';
 import { AidAmiTheme, px } from '../theme/AidAmiTheme';
 
 const MODULES = [
@@ -55,6 +60,18 @@ export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [dbStatus, setDbStatus] = useState<DbInitResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [queueDepth, setQueueDepth] = useState<number | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [lastFlush, setLastFlush] = useState<FlushSyncResult | null>(null);
+
+  const refreshQueueDepth = useCallback(async () => {
+    try {
+      const depth = await getSyncQueueDepth();
+      setQueueDepth(depth);
+    } catch {
+      setQueueDepth(null);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,13 +81,48 @@ export function HomeScreen() {
       if (!cancelled) {
         setDbStatus(result);
         setLoading(false);
+        if (result.ok) {
+          await refreshQueueDepth();
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshQueueDepth]);
+
+  const onSynchroniser = async () => {
+    if (syncing || !dbStatus?.ok) return;
+    setSyncing(true);
+    try {
+      const result = await flushSyncQueue();
+      setLastFlush(result);
+      setQueueDepth(result.pendingRemaining);
+    } catch (err) {
+      setLastFlush({
+        processed: 0,
+        succeeded: 0,
+        failed: 1,
+        skipped: 0,
+        pendingRemaining: queueDepth ?? 0,
+        transport: '—',
+        errors: [err instanceof Error ? err.message : String(err)],
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const syncSummary = lastFlush
+    ? lastFlush.failed > 0
+      ? `Échec partiel — ${lastFlush.succeeded} ok, ${lastFlush.failed} en attente (${lastFlush.transport})`
+      : `Synchronisé — ${lastFlush.succeeded} envoyé(s) via ${lastFlush.transport}`
+    : queueDepth === null
+      ? null
+      : queueDepth === 0
+        ? 'File vide — à jour'
+        : `${queueDepth} mutation(s) en file`;
 
   return (
     <ScrollView
@@ -105,6 +157,30 @@ export function HomeScreen() {
             Erreur DB : {dbStatus?.error ?? 'inconnue'}
           </Text>
         )}
+
+        {dbStatus?.ok ? (
+          <>
+            {syncSummary ? (
+              <Text style={styles.syncMeta}>{syncSummary}</Text>
+            ) : null}
+            <Pressable
+              style={({ pressed }) => [
+                styles.syncButton,
+                (syncing || loading) && styles.syncButtonDisabled,
+                pressed && styles.modulePressed,
+              ]}
+              onPress={() => void onSynchroniser()}
+              disabled={syncing || loading}
+              accessibilityRole="button"
+              accessibilityLabel="Synchroniser la file hors-ligne"
+              accessibilityHint="Pousse les mutations locales vers le transport actif"
+            >
+              <Text style={styles.syncButtonLabel}>
+                {syncing ? 'Synchronisation…' : 'Synchroniser'}
+              </Text>
+            </Pressable>
+          </>
+        ) : null}
       </View>
 
       <Text style={styles.sectionLabel}>Modules</Text>
@@ -197,6 +273,31 @@ const styles = StyleSheet.create({
     fontSize: px(AidAmiTheme.typography.sizeBody),
     lineHeight: px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
     color: AidAmiTheme.colors.emotionalRed,
+  },
+  syncMeta: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody) - 2,
+    lineHeight: (px(AidAmiTheme.typography.sizeBody) - 2) * AidAmiTheme.typography.lineHeight,
+    color: AidAmiTheme.colors.secondary,
+    marginTop: 10,
+  },
+  syncButton: {
+    marginTop: 14,
+    backgroundColor: AidAmiTheme.colors.primary,
+    borderRadius: px(AidAmiTheme.borderRadius.button),
+    minHeight: px(AidAmiTheme.touchTarget.minHeight),
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  syncButtonDisabled: {
+    opacity: 0.5,
+  },
+  syncButtonLabel: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
+    fontWeight: '600',
+    color: AidAmiTheme.colors.surface,
   },
   sectionLabel: {
     fontFamily: AidAmiTheme.typography.fontFamily,

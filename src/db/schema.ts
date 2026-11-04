@@ -99,7 +99,10 @@ CREATE TABLE IF NOT EXISTS sync_queue (
     record_id TEXT NOT NULL,
     action_type TEXT CHECK(action_type IN ('CREATE', 'UPDATE', 'DELETE')) NOT NULL,
     payload_json TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    next_attempt_at TEXT
 );
 `;
 
