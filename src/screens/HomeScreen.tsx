@@ -95,7 +95,10 @@ export function HomeScreen() {
           </View>
         ) : dbStatus?.ok ? (
           <Text style={styles.statusOk}>
-            Prête — {dbStatus.tables.length} tables ({dbStatus.tables.join(', ')})
+            Prête — {dbStatus.tables.length} tables
+            {dbStatus.seed?.seeded
+              ? ' · démo Foyer Martin chargée'
+              : ' · données locales'}
           </Text>
         ) : (
           <Text style={styles.statusError}>
