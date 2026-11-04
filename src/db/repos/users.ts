@@ -35,6 +35,16 @@ export async function getUser(id: string): Promise<User | null> {
   );
 }
 
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const db = await getDatabase();
+  return (
+    (await db.getFirstAsync<User>(
+      `SELECT * FROM users WHERE lower(email) = lower(?) LIMIT 1`,
+      email.trim(),
+    )) ?? null
+  );
+}
+
 export async function createUser(input: CreateUserInput): Promise<User> {
   const db = await getDatabase();
   const now = nowIso();

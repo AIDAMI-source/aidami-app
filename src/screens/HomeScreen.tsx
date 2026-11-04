@@ -11,11 +11,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuth } from '../auth';
 import { initializeDatabase, type DbInitResult } from '../db/database';
 import type { RootTabParamList } from '../navigation/types';
 import {
   flushSyncQueue,
   getSyncQueueDepth,
+  getSyncTransport,
   type FlushSyncResult,
 } from '../sync';
 import { AidAmiTheme, px } from '../theme/AidAmiTheme';
@@ -51,11 +53,14 @@ export function HomeScreen() {
   const navigation =
     useNavigation<BottomTabNavigationProp<RootTabParamList, 'Accueil'>>();
   const insets = useSafeAreaInsets();
+  const { mode, configured, authUser, localUser, signOut, requestLogin } =
+    useAuth();
   const [dbStatus, setDbStatus] = useState<DbInitResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [queueDepth, setQueueDepth] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [lastFlush, setLastFlush] = useState<FlushSyncResult | null>(null);
+  const transportName = getSyncTransport().name;
 
   const refreshQueueDepth = useCallback(async () => {
     try {
@@ -153,6 +158,22 @@ export function HomeScreen() {
 
         {dbStatus?.ok ? (
           <>
+            <Text style={styles.syncMeta}>
+              Transport : {transportName}
+              {configured ? ' · Supabase configuré' : ' · mode hors-ligne'}
+            </Text>
+            {mode === 'authenticated' && authUser ? (
+              <Text style={styles.syncMeta}>
+                Connecté : {authUser.email}
+                {localUser
+                  ? ` · local ${localUser.full_name}`
+                  : ' · pas de user local lié'}
+              </Text>
+            ) : (
+              <Text style={styles.syncMeta}>
+                Session : {mode === 'demo' ? 'démo locale' : mode}
+              </Text>
+            )}
             {syncSummary ? (
               <Text style={styles.syncMeta}>{syncSummary}</Text>
             ) : null}
@@ -172,6 +193,31 @@ export function HomeScreen() {
                 {syncing ? 'Synchronisation…' : 'Synchroniser'}
               </Text>
             </Pressable>
+            {mode === 'authenticated' ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.signOutButton,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => void signOut()}
+                accessibilityRole="button"
+                accessibilityLabel="Se déconnecter"
+              >
+                <Text style={styles.signOutLabel}>Se déconnecter</Text>
+              </Pressable>
+            ) : configured && mode === 'demo' ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.signOutButton,
+                  pressed && styles.pressed,
+                ]}
+                onPress={requestLogin}
+                accessibilityRole="button"
+                accessibilityLabel="Aller à la connexion"
+              >
+                <Text style={styles.signOutLabel}>Aller à la connexion</Text>
+              </Pressable>
+            ) : null}
           </>
         ) : null}
       </View>
@@ -293,6 +339,23 @@ const styles = StyleSheet.create({
     fontSize: px(AidAmiTheme.typography.sizeBody),
     fontWeight: '600',
     color: AidAmiTheme.colors.onAccent,
+  },
+  signOutButton: {
+    marginTop: 10,
+    borderRadius: px(AidAmiTheme.borderRadius.button),
+    minHeight: px(AidAmiTheme.touchTarget.minHeight),
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: AidAmiTheme.colors.surface,
+    borderWidth: 1,
+    borderColor: AidAmiTheme.colors.border,
+  },
+  signOutLabel: {
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeBody),
+    fontWeight: '600',
+    color: AidAmiTheme.colors.primary,
   },
   sectionLabel: {
     fontFamily: AidAmiTheme.typography.fontFamily,
