@@ -1,3 +1,4 @@
+import { getLinkedLocalUserId } from '../auth/localUserLink';
 import type { CareRecipient, Household, User } from '../types/models';
 import { getDatabase } from './database';
 import { seedIfEmpty, type SeedResult } from './seed';
@@ -12,6 +13,7 @@ export type AppSession = {
 /**
  * Ensures demo seed exists, then returns the active foyer / user / proche.
  * Convention for v1: first household, first admin/caregiver, first care recipient.
+ * When Auth has linked a local `users.id`, that user is preferred if in the foyer.
  */
 export async function getAppSession(): Promise<AppSession> {
   const seed = await seedIfEmpty();
@@ -25,10 +27,21 @@ export async function getAppSession(): Promise<AppSession> {
     throw new Error('Session: foyer introuvable');
   }
 
-  const activeUser = await db.getFirstAsync<User>(
-    `SELECT * FROM users WHERE id = ?`,
-    seed.userId,
-  );
+  const linkedId = getLinkedLocalUserId();
+  let activeUser: User | null = null;
+  if (linkedId) {
+    activeUser = await db.getFirstAsync<User>(
+      `SELECT * FROM users WHERE id = ? AND household_id = ?`,
+      linkedId,
+      household.id,
+    );
+  }
+  if (!activeUser) {
+    activeUser = await db.getFirstAsync<User>(
+      `SELECT * FROM users WHERE id = ?`,
+      seed.userId,
+    );
+  }
   if (!activeUser) {
     throw new Error('Session: utilisateur introuvable');
   }
