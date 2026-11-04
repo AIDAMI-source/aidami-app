@@ -25,7 +25,16 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Aid'Ami a besoin du micro pour enregistrer les mémos vocaux familiaux et les messages rassurants.",
+          "recordAudioAndroid": true,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ]
     ]
   }
 }

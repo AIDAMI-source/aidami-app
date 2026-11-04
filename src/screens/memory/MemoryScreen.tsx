@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,14 +15,14 @@ import {
   createMemoryItem,
   getAppSession,
   listMemoryItemsByCareRecipient,
+  updateMemoryItem,
 } from '../../db';
 import type { CareRecipient, MemoryItem } from '../../types/models';
 import { AidAmiTheme, px } from '../../theme/AidAmiTheme';
-import { Avatar, ScreenHeader } from '../../ui';
+import { AudioMemoControl, Avatar, ScreenHeader } from '../../ui';
 
 export function MemoryScreen() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [recipient, setRecipient] = useState<CareRecipient | null>(null);
@@ -33,10 +32,6 @@ export function MemoryScreen() {
   const [relation, setRelation] = useState('');
   const [anecdote, setAnecdote] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const horizontalPadding = 24;
-  const gap = 12;
-  const cardWidth = Math.floor((width - horizontalPadding * 2 - gap) / 2);
 
   const load = useCallback(async () => {
     try {
@@ -81,6 +76,15 @@ export function MemoryScreen() {
     }
   };
 
+  const onAudioRecordChange = async (item: MemoryItem, uri: string | null) => {
+    try {
+      await updateMemoryItem(item.id, { audio_record_url: uri });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   return (
     <ScrollView
       style={styles.scroll}
@@ -112,21 +116,38 @@ export function MemoryScreen() {
           {items.length === 0 ? (
             <Text style={styles.empty}>Aucun souvenir pour le moment.</Text>
           ) : (
-            <View style={[styles.grid, { gap }]}>
+            <View style={styles.list}>
               {items.map((item) => (
                 <View
                   key={item.id}
-                  style={[styles.card, { width: cardWidth }]}
+                  style={styles.card}
                   accessibilityRole="summary"
                   accessibilityLabel={`${item.title}, ${item.relation_type ?? 'Proche'}`}
                 >
-                  <Avatar name={item.title} id={item.id} size={72} />
-                  <Text style={styles.cardTitle} numberOfLines={1}>
-                    {item.title}
+                  <View style={styles.cardHeader}>
+                    <Avatar name={item.title} id={item.id} size={64} />
+                    <View style={styles.cardText}>
+                      <Text style={styles.cardTitle} numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                      <Text style={styles.cardMeta} numberOfLines={1}>
+                        {item.relation_type ?? 'Proche'}
+                      </Text>
+                      {item.key_anecdote ? (
+                        <Text style={styles.anecdote} numberOfLines={2}>
+                          {item.key_anecdote}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                  <Text style={styles.audioLabel}>
+                    Voix rassurante (module Alzheimer)
                   </Text>
-                  <Text style={styles.cardMeta} numberOfLines={1}>
-                    {item.relation_type ?? 'Proche'}
-                  </Text>
+                  <AudioMemoControl
+                    uri={item.audio_record_url}
+                    onChange={(uri) => onAudioRecordChange(item, uri)}
+                    accessibilityContext={`voix de ${item.title}`}
+                  />
                 </View>
               ))}
             </View>
@@ -219,34 +240,48 @@ const styles = StyleSheet.create({
     color: AidAmiTheme.colors.textMuted,
     marginBottom: 16,
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  list: {
     marginBottom: 20,
+    gap: 12,
   },
   card: {
     backgroundColor: AidAmiTheme.colors.surface,
     borderRadius: px(AidAmiTheme.borderRadius.card),
-    paddingVertical: 20,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    minHeight: 160,
+    padding: 16,
     ...AidAmiTheme.shadow.card,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  cardText: {
+    flex: 1,
+    gap: 2,
+  },
   cardTitle: {
-    marginTop: 12,
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
     fontWeight: '700',
     color: AidAmiTheme.colors.primary,
-    textAlign: 'center',
   },
   cardMeta: {
-    marginTop: 4,
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeCaption),
     color: AidAmiTheme.colors.textMuted,
-    textAlign: 'center',
+  },
+  anecdote: {
+    marginTop: 4,
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    color: AidAmiTheme.colors.textPrimary,
+  },
+  audioLabel: {
+    marginTop: 12,
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    fontWeight: '700',
+    color: AidAmiTheme.colors.primary,
   },
   composer: {
     backgroundColor: AidAmiTheme.colors.surface,

@@ -16,10 +16,12 @@ import {
   getAppSession,
   listTasksByCareRecipient,
   toggleTaskComplete,
+  updateTask,
 } from '../../db';
 import type { CareRecipient, Task, User } from '../../types/models';
 import { AidAmiTheme, px } from '../../theme/AidAmiTheme';
 import {
+  AudioMemoControl,
   dayKey,
   formatDayHeading,
   formatTimeFr,
@@ -143,6 +145,15 @@ export function TasksScreen() {
     }
   };
 
+  const onAudioMemoChange = async (task: Task, uri: string | null) => {
+    try {
+      await updateTask(task.id, { audio_memo_url: uri });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   return (
     <ScrollView
       style={styles.scroll}
@@ -181,34 +192,52 @@ export function TasksScreen() {
                   const time = formatTimeFr(task.scheduled_at);
                   const done = task.is_completed === 1;
                   return (
-                    <Pressable
-                      key={task.id}
-                      style={({ pressed }) => [
-                        styles.card,
-                        pressed && styles.pressed,
-                      ]}
-                      onPress={() => void onToggle(task)}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: done }}
-                      accessibilityLabel={`${task.title}, ${done ? 'terminée' : 'à faire'}`}
-                    >
-                      <View
-                        style={[styles.checkbox, done && styles.checkboxDone]}
+                    <View key={task.id} style={styles.card}>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.cardMain,
+                          pressed && styles.pressed,
+                        ]}
+                        onPress={() => void onToggle(task)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: done }}
+                        accessibilityLabel={`${task.title}, ${done ? 'terminée' : 'à faire'}`}
                       >
-                        {done ? <Text style={styles.checkMark}>✓</Text> : null}
-                      </View>
-                      <View style={styles.cardText}>
-                        {time ? <Text style={styles.time}>{time}</Text> : null}
-                        <Text
-                          style={[styles.cardTitle, done && styles.cardTitleDone]}
+                        <View
+                          style={[styles.checkbox, done && styles.checkboxDone]}
                         >
-                          {task.title}
-                        </Text>
-                        {taskSubtitle(task) ? (
-                          <Text style={styles.cardMeta}>{taskSubtitle(task)}</Text>
-                        ) : null}
-                      </View>
-                    </Pressable>
+                          {done ? (
+                            <Text style={styles.checkMark}>✓</Text>
+                          ) : null}
+                        </View>
+                        <View style={styles.cardText}>
+                          {time ? (
+                            <Text style={styles.time}>{time}</Text>
+                          ) : null}
+                          <Text
+                            style={[
+                              styles.cardTitle,
+                              done && styles.cardTitleDone,
+                            ]}
+                          >
+                            {task.title}
+                          </Text>
+                          {taskSubtitle(task) ? (
+                            <Text style={styles.cardMeta}>
+                              {taskSubtitle(task)}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </Pressable>
+                      <Text style={styles.audioLabel}>
+                        Mémo vocal (consigne familiale)
+                      </Text>
+                      <AudioMemoControl
+                        uri={task.audio_memo_url}
+                        onChange={(uri) => onAudioMemoChange(task, uri)}
+                        accessibilityContext={`mémo de la tâche ${task.title}`}
+                      />
+                    </View>
                   );
                 })}
               </View>
@@ -297,16 +326,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
     backgroundColor: AidAmiTheme.colors.surface,
     borderRadius: px(AidAmiTheme.borderRadius.card),
     borderWidth: 1,
     borderColor: AidAmiTheme.colors.border,
     padding: 16,
     marginBottom: 10,
-    minHeight: px(AidAmiTheme.touchTarget.minHeight) + 16,
+  },
+  cardMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    minHeight: px(AidAmiTheme.touchTarget.minHeight),
+  },
+  audioLabel: {
+    marginTop: 12,
+    fontFamily: AidAmiTheme.typography.fontFamily,
+    fontSize: px(AidAmiTheme.typography.sizeCaption),
+    fontWeight: '700',
+    color: AidAmiTheme.colors.primary,
   },
   checkbox: {
     width: 28,

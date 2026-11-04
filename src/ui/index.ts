@@ -1,4 +1,5 @@
 export { Avatar } from './Avatar';
+export { AudioMemoControl } from './AudioMemoControl';
 export { ScreenHeader, SectionHeader } from './ScreenHeader';
 export {
   avatarColorForId,
