@@ -8,6 +8,7 @@ export { ProfileGuidanceBanner } from './ProfileGuidanceBanner';
 export { ScreenHeader, SectionHeader } from './ScreenHeader';
 export {
   avatarColorForId,
+  caregiverDisplayName,
   dayKey,
   formatDayGroupShort,
   formatDayHeading,

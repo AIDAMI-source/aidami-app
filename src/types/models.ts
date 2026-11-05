@@ -105,6 +105,27 @@ export type AdviceMessage = {
   created_at: SqliteTimestamp;
 };
 
+/** Caregiver peer experience post (Communauté). */
+export type CommunityPost = {
+  id: string;
+  author_user_id: string;
+  body: string;
+  created_at: SqliteTimestamp;
+  updated_at: SqliteTimestamp;
+  deleted_at: SqliteTimestamp | null;
+};
+
+/** Optional reply on a community post. */
+export type CommunityReply = {
+  id: string;
+  post_id: string;
+  author_user_id: string;
+  body: string;
+  created_at: SqliteTimestamp;
+  updated_at: SqliteTimestamp;
+  deleted_at: SqliteTimestamp | null;
+};
+
 export type SyncQueueItem = {
   id: number;
   target_table: string;

@@ -5,6 +5,7 @@ export type RootTabParamList = {
   Comportements: undefined;
   Memoire: undefined;
   Conseils: undefined;
+  Communaute: undefined;
 };
 
 declare global {
