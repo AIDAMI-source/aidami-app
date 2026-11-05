@@ -14,7 +14,12 @@ export const PROFILE_TYPE_HINTS: Record<ProfileType, string> = {
   MIXED: 'Mémoire et comportements disponibles ensemble',
 };
 
-export type ModuleKey = 'household' | 'tasks' | 'behavior' | 'memory';
+export type ModuleKey =
+  | 'household'
+  | 'tasks'
+  | 'behavior'
+  | 'memory'
+  | 'advice';
 
 export type ModuleEmphasis = 'emphasized' | 'normal' | 'deemphasized';
 
@@ -23,7 +28,9 @@ export function moduleEmphasisForProfile(
   profileType: ProfileType,
   moduleKey: ModuleKey,
 ): ModuleEmphasis {
-  if (moduleKey === 'household' || moduleKey === 'tasks') return 'normal';
+  if (moduleKey === 'household' || moduleKey === 'tasks' || moduleKey === 'advice') {
+    return 'normal';
+  }
 
   if (profileType === 'ALZHEIMER') {
     if (moduleKey === 'memory') return 'emphasized';

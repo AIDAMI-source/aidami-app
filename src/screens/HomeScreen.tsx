@@ -67,6 +67,12 @@ const MODULES: {
     label: 'Mémoire',
     hint: 'Trombinoscope',
   },
+  {
+    key: 'advice',
+    route: 'Conseils',
+    label: 'Conseils',
+    hint: 'Soutien IA aidant',
+  },
 ];
 
 function sortModulesForProfile(profileType: ProfileType | null) {
