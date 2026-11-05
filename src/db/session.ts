@@ -5,7 +5,12 @@ import {
   setActiveCareRecipientId,
 } from './activeCareRecipient';
 import { getDatabase } from './database';
-import { ensureDemoRecipientsPerType, seedIfEmpty, type SeedResult } from './seed';
+import {
+  ensureDemoCommunityPosts,
+  ensureDemoRecipientsPerType,
+  seedIfEmpty,
+  type SeedResult,
+} from './seed';
 
 export type AppSession = {
   household: Household;
@@ -24,6 +29,7 @@ export type AppSession = {
 export async function getAppSession(): Promise<AppSession> {
   const seed = await seedIfEmpty();
   await ensureDemoRecipientsPerType(seed.householdId);
+  await ensureDemoCommunityPosts();
   const db = await getDatabase();
 
   const household = await db.getFirstAsync<Household>(

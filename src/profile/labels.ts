@@ -19,7 +19,8 @@ export type ModuleKey =
   | 'tasks'
   | 'behavior'
   | 'memory'
-  | 'advice';
+  | 'advice'
+  | 'community';
 
 export type ModuleEmphasis = 'emphasized' | 'normal' | 'deemphasized';
 
@@ -28,7 +29,12 @@ export function moduleEmphasisForProfile(
   profileType: ProfileType,
   moduleKey: ModuleKey,
 ): ModuleEmphasis {
-  if (moduleKey === 'household' || moduleKey === 'tasks' || moduleKey === 'advice') {
+  if (
+    moduleKey === 'household' ||
+    moduleKey === 'tasks' ||
+    moduleKey === 'advice' ||
+    moduleKey === 'community'
+  ) {
     return 'normal';
   }
 

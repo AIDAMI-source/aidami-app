@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { ConseilsScreen } from '../screens/advice/ConseilsScreen';
 import { BehaviorLogsScreen } from '../screens/behavior-logs/BehaviorLogsScreen';
+import { CommunauteScreen } from '../screens/community/CommunauteScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { HouseholdScreen } from '../screens/household/HouseholdScreen';
 import { MemoryScreen } from '../screens/memory/MemoryScreen';
@@ -20,6 +21,7 @@ const TAB_LABELS: Record<keyof RootTabParamList, string> = {
   Comportements: 'Comport.',
   Memoire: 'Mémoire',
   Conseils: 'Conseils',
+  Communaute: 'Commun.',
 };
 
 function TabIcon({ focused }: { focused: boolean }) {
@@ -67,7 +69,9 @@ export function RootTabNavigator() {
         tabBarAccessibilityLabel:
           route.name === 'Comportements'
             ? 'Comportements'
-            : TAB_LABELS[route.name],
+            : route.name === 'Communaute'
+              ? 'Communauté'
+              : TAB_LABELS[route.name],
         sceneStyle: styles.scene,
       })}
     >
@@ -100,6 +104,11 @@ export function RootTabNavigator() {
         name="Conseils"
         component={ConseilsScreen}
         options={{ title: 'Conseils' }}
+      />
+      <Tab.Screen
+        name="Communaute"
+        component={CommunauteScreen}
+        options={{ title: 'Communauté' }}
       />
     </Tab.Navigator>
   );

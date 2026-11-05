@@ -3,6 +3,8 @@ export type {
   AdviceMessageRole,
   BehaviorLog,
   CareRecipient,
+  CommunityPost,
+  CommunityReply,
   Household,
   IntensityLevel,
   MemoryItem,

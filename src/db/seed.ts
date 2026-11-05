@@ -1,6 +1,8 @@
 import type {
   BehaviorLog,
   CareRecipient,
+  CommunityPost,
+  CommunityReply,
   Household,
   MemoryItem,
   Task,
@@ -19,6 +21,10 @@ export const DEMO_IDS = {
   careRecipient: 'demo-recipient-lea',
   careRecipientAlzheimer: 'demo-recipient-paul',
   careRecipientTsa: 'demo-recipient-noah',
+  communityPost1: 'demo-community-post-1',
+  communityPost2: 'demo-community-post-2',
+  communityPost3: 'demo-community-post-3',
+  communityReply1: 'demo-community-reply-1',
 } as const;
 
 export type SeedResult = {
@@ -457,6 +463,8 @@ export async function seedIfEmpty(): Promise<SeedResult> {
     }
   });
 
+  await ensureDemoCommunityPosts();
+
   return {
     seeded: true,
     householdId: household.id,
@@ -492,6 +500,114 @@ const DEMO_RECIPIENT_SPECS: DemoRecipientSpec[] = [
     notes: 'Démo — profil TSA / TDAH (comportements)',
   },
 ];
+
+type DemoCommunityPostSpec = {
+  id: string;
+  author_user_id: string;
+  body: string;
+  hoursAgo: number;
+};
+
+const DEMO_COMMUNITY_POSTS: DemoCommunityPostSpec[] = [
+  {
+    id: DEMO_IDS.communityPost1,
+    author_user_id: DEMO_IDS.admin,
+    body: 'Ce matin, une promenade courte avant le bruit de la rue a vraiment calmé Léa. Je note l’heure : avant 9 h, ça passe mieux.',
+    hoursAgo: 5,
+  },
+  {
+    id: DEMO_IDS.communityPost2,
+    author_user_id: DEMO_IDS.caregiver,
+    body: 'Quand la surcharge monte, on coupe la lumière du salon et on propose le casque. Pas de questions, juste un geste connu.',
+    hoursAgo: 28,
+  },
+  {
+    id: DEMO_IDS.communityPost3,
+    author_user_id: DEMO_IDS.admin,
+    body: 'Le trombinoscope avec la voix de la petite-fille a aidé Paul à se détendre avant le coucher. Merci à celles et ceux qui avaient partagé l’idée.',
+    hoursAgo: 52,
+  },
+];
+
+function hoursAgoIso(hours: number): string {
+  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+}
+
+/**
+ * Seeds a few Communauté demo posts when the feed is empty.
+ * Safe on every launch; uses stable IDs and enqueues sync_queue CREATE.
+ */
+export async function ensureDemoCommunityPosts(): Promise<void> {
+  const db = await getDatabase();
+  const existing = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) AS count FROM community_posts WHERE deleted_at IS NULL`,
+  );
+  if ((existing?.count ?? 0) > 0) return;
+
+  const admin = await db.getFirstAsync<User>(
+    `SELECT * FROM users WHERE id = ?`,
+    DEMO_IDS.admin,
+  );
+  const caregiver = await db.getFirstAsync<User>(
+    `SELECT * FROM users WHERE id = ?`,
+    DEMO_IDS.caregiver,
+  );
+  if (!admin || !caregiver) return;
+
+  const posts: CommunityPost[] = DEMO_COMMUNITY_POSTS.map((spec) => {
+    const at = hoursAgoIso(spec.hoursAgo);
+    return {
+      id: spec.id,
+      author_user_id: spec.author_user_id,
+      body: spec.body,
+      created_at: at,
+      updated_at: at,
+      deleted_at: null,
+    };
+  });
+
+  const replyAt = hoursAgoIso(4);
+  const reply: CommunityReply = {
+    id: DEMO_IDS.communityReply1,
+    post_id: DEMO_IDS.communityPost1,
+    author_user_id: DEMO_IDS.caregiver,
+    body: 'Merci Marie — on va essayer le même créneau demain.',
+    created_at: replyAt,
+    updated_at: replyAt,
+    deleted_at: null,
+  };
+
+  await db.withTransactionAsync(async () => {
+    for (const post of posts) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO community_posts (
+          id, author_user_id, body, created_at, updated_at, deleted_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        post.id,
+        post.author_user_id,
+        post.body,
+        post.created_at,
+        post.updated_at,
+        post.deleted_at,
+      );
+      await enqueueSync(db, 'community_posts', post.id, 'CREATE', post);
+    }
+
+    await db.runAsync(
+      `INSERT OR IGNORE INTO community_replies (
+        id, post_id, author_user_id, body, created_at, updated_at, deleted_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      reply.id,
+      reply.post_id,
+      reply.author_user_id,
+      reply.body,
+      reply.created_at,
+      reply.updated_at,
+      reply.deleted_at,
+    );
+    await enqueueSync(db, 'community_replies', reply.id, 'CREATE', reply);
+  });
+}
 
 /**
  * Ensures the demo foyer has at least one proche per profile_type.

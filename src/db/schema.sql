@@ -99,6 +99,29 @@ CREATE TABLE IF NOT EXISTS advice_messages (
     FOREIGN KEY (care_recipient_id) REFERENCES care_recipients(id)
 );
 
+-- Fil Communauté : expériences partagées entre aidants
+CREATE TABLE IF NOT EXISTS community_posts (
+    id TEXT PRIMARY KEY,
+    author_user_id TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    FOREIGN KEY (author_user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS community_replies (
+    id TEXT PRIMARY KEY,
+    post_id TEXT NOT NULL,
+    author_user_id TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    FOREIGN KEY (post_id) REFERENCES community_posts(id),
+    FOREIGN KEY (author_user_id) REFERENCES users(id)
+);
+
 -- File d'attente pour la synchronisation hors-ligne
 CREATE TABLE IF NOT EXISTS sync_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -73,6 +73,12 @@ const MODULES: {
     label: 'Conseils',
     hint: 'Soutien IA aidant',
   },
+  {
+    key: 'community',
+    route: 'Communaute',
+    label: 'Communauté',
+    hint: 'Expériences entre aidants',
+  },
 ];
 
 function sortModulesForProfile(profileType: ProfileType | null) {

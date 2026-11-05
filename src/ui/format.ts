@@ -1,3 +1,16 @@
+/**
+ * Privacy-safe caregiver label for Communauté.
+ * Shows first name only — never email. Falls back to « Aidant ».
+ */
+export function caregiverDisplayName(
+  fullName: string | null | undefined,
+): string {
+  if (!fullName?.trim()) return 'Aidant';
+  const first = fullName.trim().split(/\s+/)[0];
+  if (!first || first.includes('@')) return 'Aidant';
+  return first;
+}
+
 /** Two-letter initials from a display name (FR-friendly). */
 export function initialsFromName(name: string): string {
   const parts = name
