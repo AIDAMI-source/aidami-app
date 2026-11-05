@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { ConseilsScreen } from '../screens/advice/ConseilsScreen';
 import { BehaviorLogsScreen } from '../screens/behavior-logs/BehaviorLogsScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { HouseholdScreen } from '../screens/household/HouseholdScreen';
@@ -18,6 +19,7 @@ const TAB_LABELS: Record<keyof RootTabParamList, string> = {
   Taches: 'Tâches',
   Comportements: 'Comport.',
   Memoire: 'Mémoire',
+  Conseils: 'Conseils',
 };
 
 function TabIcon({ focused }: { focused: boolean }) {
@@ -93,6 +95,11 @@ export function RootTabNavigator() {
         name="Memoire"
         component={MemoryScreen}
         options={{ title: 'Mémoire' }}
+      />
+      <Tab.Screen
+        name="Conseils"
+        component={ConseilsScreen}
+        options={{ title: 'Conseils' }}
       />
     </Tab.Navigator>
   );

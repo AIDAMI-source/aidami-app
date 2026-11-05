@@ -92,6 +92,16 @@ CREATE TABLE IF NOT EXISTS memory_items (
     FOREIGN KEY (care_recipient_id) REFERENCES care_recipients(id)
 );
 
+-- Table Conseils IA (chat local aidant — non synchronisé)
+CREATE TABLE IF NOT EXISTS advice_messages (
+    id TEXT PRIMARY KEY,
+    care_recipient_id TEXT,
+    role TEXT CHECK(role IN ('user', 'assistant')) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (care_recipient_id) REFERENCES care_recipients(id)
+);
+
 -- File d'attente pour la synchronisation hors-ligne
 CREATE TABLE IF NOT EXISTS sync_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -113,5 +123,6 @@ export const EXPECTED_TABLES = [
   'tasks',
   'behavior_logs',
   'memory_items',
+  'advice_messages',
   'sync_queue',
 ] as const;

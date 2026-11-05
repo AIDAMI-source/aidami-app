@@ -1,4 +1,6 @@
 export type {
+  AdviceMessage,
+  AdviceMessageRole,
   BehaviorLog,
   CareRecipient,
   Household,

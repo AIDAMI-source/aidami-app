@@ -94,6 +94,17 @@ export type MemoryItem = {
   updated_at: SqliteTimestamp;
 };
 
+export type AdviceMessageRole = 'user' | 'assistant';
+
+/** Local AI caregiver-support chat (not synced). */
+export type AdviceMessage = {
+  id: string;
+  care_recipient_id: string | null;
+  role: AdviceMessageRole;
+  content: string;
+  created_at: SqliteTimestamp;
+};
+
 export type SyncQueueItem = {
   id: number;
   target_table: string;
