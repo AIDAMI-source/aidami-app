@@ -10,9 +10,11 @@
       "backgroundColor": "#F8FAFC"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aidami.app"
     },
     "android": {
+      "package": "com.aidami.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
