@@ -18,7 +18,7 @@ import {
   updateCareRecipient,
   listUsersByHousehold,
 } from '../../db';
-import { PROFILE_TYPE_LABELS } from '../../profile';
+import { PROFILE_TYPE_LABELS, profileSectionTint } from '../../profile';
 import type { CareRecipient, Household, ProfileType, User } from '../../types/models';
 import { AidAmiTheme, px } from '../../theme/AidAmiTheme';
 import {
@@ -148,7 +148,18 @@ export function HouseholdScreen() {
       ) : household ? (
         <>
           <SectionHeader title="Proche accompagné" count={recipients.length} />
-          <View style={styles.profileCard}>
+          <View
+            style={[
+              styles.profileCard,
+              activeRecipient
+                ? {
+                    backgroundColor: profileSectionTint(
+                      activeRecipient.profile_type,
+                    ),
+                  }
+                : null,
+            ]}
+          >
             {recipients.length === 0 ? (
               <Text style={styles.emptyInline}>Aucun proche pour le moment.</Text>
             ) : (
@@ -290,7 +301,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   profileCard: {
-    backgroundColor: AidAmiTheme.colors.surface,
+    backgroundColor: AidAmiTheme.colors.surfaceSoft,
     borderRadius: px(AidAmiTheme.borderRadius.card),
     padding: 16,
     marginBottom: 24,
@@ -381,7 +392,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   input: {
-    backgroundColor: AidAmiTheme.colors.surfaceMuted,
+    backgroundColor: AidAmiTheme.colors.chipInactive,
     borderRadius: px(AidAmiTheme.borderRadius.button),
     minHeight: px(AidAmiTheme.touchTarget.minHeight),
     paddingHorizontal: 16,

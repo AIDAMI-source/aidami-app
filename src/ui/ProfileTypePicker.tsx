@@ -4,6 +4,7 @@ import {
   PROFILE_TYPE_HINTS,
   PROFILE_TYPE_LABELS,
   PROFILE_TYPES,
+  profileChipSelected,
 } from '../profile';
 import type { CareRecipient, ProfileType } from '../types/models';
 import { AidAmiTheme, px } from '../theme/AidAmiTheme';
@@ -20,6 +21,7 @@ type ProfileTypePickerProps = {
 
 /**
  * Accessible French profile-type chips (≥48px). Persist via caller → care_recipients repo.
+ * Pastels différenciés : pêche Alzheimer, menthe TSA, bleu-vert Mixte.
  */
 export function ProfileTypePicker({
   selected,
@@ -35,12 +37,16 @@ export function ProfileTypePicker({
       <View style={styles.chipRow}>
         {PROFILE_TYPES.map((type) => {
           const isSelected = type === selected;
+          const selectedBg = profileChipSelected(type);
           return (
             <Pressable
               key={type}
               style={({ pressed }) => [
                 styles.chip,
-                isSelected && styles.chipSelected,
+                isSelected && {
+                  backgroundColor: selectedBg,
+                  borderColor: selectedBg,
+                },
                 disabled && styles.chipDisabled,
                 pressed && !disabled && styles.pressed,
               ]}
@@ -148,15 +154,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: px(AidAmiTheme.borderRadius.button),
-    backgroundColor: AidAmiTheme.colors.surfaceMuted,
+    backgroundColor: AidAmiTheme.colors.chipInactive,
     borderWidth: 2,
-    borderColor: AidAmiTheme.colors.border,
+    borderColor: AidAmiTheme.colors.chipInactiveBorder,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  chipSelected: {
-    backgroundColor: AidAmiTheme.colors.primary,
-    borderColor: AidAmiTheme.colors.primary,
   },
   chipDisabled: {
     opacity: 0.5,
@@ -165,7 +167,7 @@ const styles = StyleSheet.create({
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeBody),
     fontWeight: '600',
-    color: AidAmiTheme.colors.primary,
+    color: AidAmiTheme.colors.textOnPastel,
   },
   chipLabelSelected: {
     color: AidAmiTheme.colors.onAccent,
@@ -190,7 +192,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: px(AidAmiTheme.borderRadius.card),
-    backgroundColor: AidAmiTheme.colors.surfaceMuted,
+    backgroundColor: AidAmiTheme.colors.chipInactive,
     borderWidth: 2,
     borderColor: 'transparent',
   },
@@ -217,7 +219,7 @@ const styles = StyleSheet.create({
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeCaption),
     fontWeight: '700',
-    color: AidAmiTheme.colors.accent,
+    color: AidAmiTheme.colors.chipTsa,
   },
   pressed: {
     opacity: 0.85,

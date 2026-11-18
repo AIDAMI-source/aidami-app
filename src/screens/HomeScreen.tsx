@@ -23,7 +23,11 @@ import type { RootTabParamList } from '../navigation/types';
 import {
   moduleEmphasisForProfile,
   PROFILE_TYPE_LABELS,
+  profileEmphasisBorder,
   profileGuidanceSentence,
+  profileModuleBackground,
+  profileModuleTextColor,
+  profileSectionTint,
   type ModuleEmphasis,
   type ModuleKey,
 } from '../profile';
@@ -94,10 +98,35 @@ function sortModulesForProfile(profileType: ProfileType | null) {
   });
 }
 
-function moduleStyle(emphasis: ModuleEmphasis) {
-  if (emphasis === 'emphasized') return styles.moduleEmphasized;
-  if (emphasis === 'deemphasized') return styles.moduleDeemphasized;
-  return null;
+function moduleDynamicStyle(
+  profileType: ProfileType,
+  emphasis: ModuleEmphasis,
+) {
+  const backgroundColor = profileModuleBackground(profileType, emphasis);
+  const textColor = profileModuleTextColor(profileType);
+  const borderColor = profileEmphasisBorder(profileType);
+  return {
+    button: {
+      backgroundColor,
+      ...(emphasis === 'emphasized'
+        ? { borderWidth: 3, borderColor }
+        : emphasis === 'deemphasized'
+          ? { opacity: 0.72 }
+          : null),
+    },
+    label: { color: textColor },
+    hint: { color: textColor, opacity: 0.92 },
+    badge:
+      emphasis === 'emphasized'
+        ? {
+            color: AidAmiTheme.colors.onAccent,
+            backgroundColor: borderColor,
+          }
+        : {
+            color: textColor,
+            opacity: 0.9,
+          },
+  };
 }
 
 export function HomeScreen() {
@@ -233,7 +262,10 @@ export function HomeScreen() {
 
       {dbStatus?.ok && recipient ? (
         <View
-          style={styles.profileCard}
+          style={[
+            styles.profileCard,
+            { backgroundColor: profileSectionTint(recipient.profile_type) },
+          ]}
           accessibilityLabel={`Proche actif ${recipient.first_name}, profil ${PROFILE_TYPE_LABELS[recipient.profile_type]}`}
         >
           <Text style={styles.statusTitle}>Proche accompagné</Text>
@@ -362,9 +394,11 @@ export function HomeScreen() {
       ) : null}
       <View style={styles.moduleList}>
         {modules.map((mod) => {
+          const profileType = recipient?.profile_type ?? 'MIXED';
           const emphasis = recipient
-            ? moduleEmphasisForProfile(recipient.profile_type, mod.key)
+            ? moduleEmphasisForProfile(profileType, mod.key)
             : 'normal';
+          const dynamic = moduleDynamicStyle(profileType, emphasis);
           const emphasisHint =
             emphasis === 'emphasized'
               ? 'Recommandé pour ce profil'
@@ -376,7 +410,7 @@ export function HomeScreen() {
               key={mod.key}
               style={({ pressed }) => [
                 styles.moduleButton,
-                moduleStyle(emphasis),
+                dynamic.button,
                 pressed && styles.pressed,
               ]}
               accessibilityRole="button"
@@ -385,15 +419,21 @@ export function HomeScreen() {
               onPress={() => navigation.navigate(mod.route)}
             >
               <View style={styles.moduleTitleRow}>
-                <Text style={styles.moduleLabel}>{mod.label}</Text>
+                <Text style={[styles.moduleLabel, dynamic.label]}>
+                  {mod.label}
+                </Text>
                 {emphasis === 'emphasized' ? (
-                  <Text style={styles.emphasisBadge}>Prioritaire</Text>
+                  <Text style={[styles.emphasisBadge, dynamic.badge]}>
+                    Prioritaire
+                  </Text>
                 ) : null}
                 {emphasis === 'deemphasized' ? (
-                  <Text style={styles.deemphasisBadge}>Secondaire</Text>
+                  <Text style={[styles.deemphasisBadge, dynamic.badge]}>
+                    Secondaire
+                  </Text>
                 ) : null}
               </View>
-              <Text style={styles.moduleHint}>{mod.hint}</Text>
+              <Text style={[styles.moduleHint, dynamic.hint]}>{mod.hint}</Text>
             </Pressable>
           );
         })}
@@ -405,7 +445,7 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: AidAmiTheme.colors.surface,
+    backgroundColor: AidAmiTheme.colors.background,
   },
   content: {
     paddingHorizontal: 24,
@@ -429,7 +469,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   profileCard: {
-    backgroundColor: AidAmiTheme.colors.surfaceMuted,
+    backgroundColor: AidAmiTheme.colors.surfaceSoft,
     borderRadius: px(AidAmiTheme.borderRadius.card),
     padding: 20,
     marginBottom: 20,
@@ -481,7 +521,7 @@ const styles = StyleSheet.create({
     color: AidAmiTheme.colors.primary,
   },
   statusCard: {
-    backgroundColor: AidAmiTheme.colors.surfaceMuted,
+    backgroundColor: AidAmiTheme.colors.surfaceSoft,
     borderRadius: px(AidAmiTheme.borderRadius.card),
     padding: 20,
     marginBottom: 28,
@@ -594,14 +634,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     justifyContent: 'center',
   },
-  moduleEmphasized: {
-    borderWidth: 3,
-    borderColor: AidAmiTheme.colors.primary,
-  },
-  moduleDeemphasized: {
-    opacity: 0.55,
-    backgroundColor: AidAmiTheme.colors.secondary,
-  },
   moduleTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -612,8 +644,6 @@ const styles = StyleSheet.create({
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: 12,
     fontWeight: '700',
-    color: AidAmiTheme.colors.onAccent,
-    backgroundColor: AidAmiTheme.colors.primary,
     overflow: 'hidden',
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -623,8 +653,6 @@ const styles = StyleSheet.create({
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: 12,
     fontWeight: '600',
-    color: AidAmiTheme.colors.onAccent,
-    opacity: 0.9,
   },
   pressed: {
     opacity: 0.85,
@@ -635,12 +663,9 @@ const styles = StyleSheet.create({
     lineHeight:
       px(AidAmiTheme.typography.sizeBody) * AidAmiTheme.typography.lineHeight,
     fontWeight: '700',
-    color: AidAmiTheme.colors.onAccent,
   },
   moduleHint: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeCaption),
-    color: AidAmiTheme.colors.onAccent,
-    opacity: 0.92,
   },
 });
