@@ -3,6 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import {
   moduleEmphasisForProfile,
   PROFILE_TYPE_LABELS,
+  profileChipSelected,
+  profileSectionTint,
   type ModuleKey,
 } from '../profile';
 import type { ProfileType } from '../types/models';
@@ -20,6 +22,7 @@ const MODULE_LABEL: Record<'memory' | 'behavior', string> = {
 
 /**
  * Soft guidance banner — never blocks access.
+ * Teinte pêche (Alzheimer) / menthe (TSA) selon le profil.
  */
 export function ProfileGuidanceBanner({
   profileType,
@@ -38,12 +41,15 @@ export function ProfileGuidanceBanner({
     return null;
   }
 
+  const tint = profileSectionTint(profileType);
+  const border =
+    emphasis === 'emphasized'
+      ? profileChipSelected(profileType)
+      : AidAmiTheme.colors.border;
+
   return (
     <View
-      style={[
-        styles.banner,
-        emphasis === 'emphasized' ? styles.emphasized : styles.deemphasized,
-      ]}
+      style={[styles.banner, { backgroundColor: tint, borderColor: border }]}
       accessibilityRole="text"
       accessibilityLiveRegion="polite"
     >
@@ -60,21 +66,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
   },
-  emphasized: {
-    backgroundColor: AidAmiTheme.colors.surfaceMuted,
-    borderColor: AidAmiTheme.colors.accent,
-  },
-  deemphasized: {
-    backgroundColor: AidAmiTheme.colors.surfaceMuted,
-    borderColor: AidAmiTheme.colors.border,
-    opacity: 0.85,
-  },
   text: {
     fontFamily: AidAmiTheme.typography.fontFamily,
     fontSize: px(AidAmiTheme.typography.sizeCaption),
     lineHeight:
       px(AidAmiTheme.typography.sizeCaption) *
       AidAmiTheme.typography.lineHeight,
-    color: AidAmiTheme.colors.textMuted,
+    color: AidAmiTheme.colors.textOnPastel,
   },
 });

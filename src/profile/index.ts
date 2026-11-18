@@ -7,3 +7,10 @@ export {
   type ModuleEmphasis,
   type ModuleKey,
 } from './labels';
+export {
+  profileChipSelected,
+  profileEmphasisBorder,
+  profileModuleBackground,
+  profileModuleTextColor,
+  profileSectionTint,
+} from './visuals';

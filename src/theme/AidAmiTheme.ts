@@ -1,18 +1,47 @@
-// Thème visuel Aid'Ami (Accessible WCAG AAA)
+// Thème visuel Aid'Ami (Accessible WCAG AA+)
+// Profils Alzheimer / TSA : pastels différenciés (option C) — sans gris froid.
 export const AidAmiTheme = {
   colors: {
     primary: '#2B4C5F', // Bleu Nuit (Structurel / Réconfort)
     secondary: '#5C766D', // Vert Sauge (Apaisement)
     accent: '#2DD4BF', // Teal Chaleureux (Bouton d'action principal)
-    onAccent: '#FFFFFF', // Texte sur boutons teal
-    background: '#F8FAFC', // Blanc cassé doux (Anti-éblouissement)
-    surface: '#FFFFFF', // Blanc pur pour les cartes
-    surfaceMuted: '#EEF2F5', // Carte statut / fonds discrets
-    textPrimary: '#1E293B', // Texte sombre à fort contraste
-    textMuted: '#64748B', // Sous-titres / méta
-    border: '#E2E8F0', // Bordures de cartes
+    onAccent: '#FFFFFF', // Texte sur boutons teal saturés
+    background: '#F3F0EA', // Lin clair (fond écran option C)
+    surface: '#FCFAF6', // Carte claire chaude
+    surfaceSoft: '#EFE8DC', // Surface soft lin (remplace surfaceMuted gris)
+    /** @deprecated Prefer surfaceSoft — kept as alias for non-profile screens. */
+    surfaceMuted: '#EFE8DC',
+    textPrimary: '#2B4C5F', // Texte principal nuit
+    textOnPastel: '#3A4538', // Texte sur pastels pêche / menthe
+    textMuted: '#5A6554', // Secondaire chaud (plus de gris #64748B)
+    border: '#D4C7B2', // Bordure lin
+    borderSubtle: '#E8DFD0',
     pending: '#F59E0B', // Badge invitations
-    tabInactive: '#94A3B8',
+    tabInactive: '#8A8578',
+
+    // Chips profil — inactifs
+    chipInactive: '#E8DFD0',
+    chipInactiveBorder: '#D4C7B2',
+
+    // Chips sélectionnés (légèrement approfondis pour contraste AA avec blanc)
+    chipAlzheimer: '#B06852',
+    chipTsa: '#2F7A68',
+    chipMixed: '#3A6B7A',
+
+    // Modules Accueil selon profil
+    moduleAlzheimer: '#E8A090',
+    moduleTsa: '#6DB5A3',
+    moduleSecondary: '#B8A890',
+    onModulePastel: '#3A4538', // Texte sombre sur modules pastel
+
+    // Teintes de sections « Proche accompagné »
+    tintAlzheimer: '#F3DDD4',
+    tintTsa: '#D5EBE3',
+    tintMixed: '#D6E4E8',
+
+    // Hex palette validée (référence maquette C)
+    paletteAlzheimerSelected: '#C97B63',
+    paletteTsaSelected: '#3F8F7A',
 
     // Code Couleur Émotionnel (TSA / TDAH)
     emotionalGreen: '#4ADE80',
@@ -50,7 +79,7 @@ export const AidAmiTheme = {
   },
   shadow: {
     card: {
-      shadowColor: '#1E293B',
+      shadowColor: '#3A4538',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.06,
       shadowRadius: 8,
